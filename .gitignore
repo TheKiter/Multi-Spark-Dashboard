@@ -1,0 +1,14 @@
+# Telemetry server logs and PIDs
+server.pid
+server.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local config
+nodes.json
+
+# IDEs
+.vscode/
+.idea/

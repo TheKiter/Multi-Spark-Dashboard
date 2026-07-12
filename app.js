@@ -240,7 +240,7 @@ function renderHardwareCards(nodes) {
             html += `
                 <div class="node-card neumorphic-raised offline">
                     <div class="node-card-header">
-                        <h3>${nodeId}</h3>
+                        <h3>${nodeId.replace("spark-", "")}</h3>
                         <span class="node-badge offline">OFFLINE</span>
                     </div>
                     <div class="node-body">
@@ -301,7 +301,7 @@ function renderHardwareCards(nodes) {
             gpuHtml = `
                 <div class="gpu-subsection neumorphic-recessed">
                     <div class="gpu-header">
-                        <h4>GPU Accelerator (NVIDIA GB10) ${throttleBadge}</h4>
+                        <h4>GPU ${throttleBadge}</h4>
                         <span class="gpu-badge online">ONLINE</span>
                     </div>
                     <div class="gpu-gauges-row">
@@ -311,7 +311,7 @@ function renderHardwareCards(nodes) {
                         ${makeDial(vramPerc, 'VRAM', getStrongWeakColor)}
                     </div>
                     <div class="gpu-vram-label font-tabular" style="text-align: center; font-size: 0.72rem; margin-top: 6px; color: var(--text-secondary);">
-                        Allocated VRAM: <span class="mono-num highlight-val">${vramUsedGB} GB / ${vramTotalGB} GB</span>
+                        VRAM: <span class="mono-num highlight-val">${vramUsedGB} GB / ${vramTotalGB} GB</span>
                     </div>
                 </div>
             `;
@@ -319,7 +319,7 @@ function renderHardwareCards(nodes) {
             gpuHtml = `
                 <div class="gpu-subsection neumorphic-recessed offline">
                     <div class="gpu-header">
-                        <h4>GPU Accelerator</h4>
+                        <h4>GPU</h4>
                         <span class="gpu-badge offline">NO GPU</span>
                     </div>
                     <p class="no-gpu-text">No active NVIDIA hardware detected or driver not loaded.</p>
@@ -331,7 +331,7 @@ function renderHardwareCards(nodes) {
             <div class="node-card neumorphic-raised">
                 <div class="node-card-header">
                     <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <h3>${nodeId}</h3>
+                        <h3>${nodeId.replace("spark-", "")}</h3>
                         ${pressureBadges}
                     </div>
                     <span class="node-badge online">ONLINE</span>
@@ -415,7 +415,7 @@ function renderMemoryHogs(nodes) {
     allHogs.slice(0, 8).forEach(h => {
         rowsHtml += `
             <tr>
-                <td><span class="node-label-small">${h.nodeId}</span></td>
+                <td><span class="node-label-small">${h.nodeId.replace("spark-", "")}</span></td>
                 <td><span class="mono-text">${h.name}</span></td>
                 <td class="font-tabular font-dim">${h.pid}</td>
                 <td class="text-right font-tabular highlight-val">${h.mem}%</td>
@@ -509,7 +509,7 @@ function renderControlCenter(nodes) {
         html += `
             <div class="node-control-card neumorphic-raised">
                 <div class="control-card-header">
-                    <h3>${nodeId} App Controls</h3>
+                    <h3>${nodeId.replace("spark-", "")} App Controls</h3>
                 </div>
                 <div class="control-card-body">
                     <div class="subset-title">Docker Containers</div>
@@ -636,7 +636,7 @@ function checkKernelAlarms(nodes) {
         alarmBanner.style.display = "flex";
         
         let typeLabel = activeAlarm.type === "xid" ? "NVIDIA Driver Xid Error" : "System RAM Out-Of-Memory (OOM)";
-        alarmDesc.innerHTML = `<span style="color:var(--danger); font-weight:800;">${typeLabel}</span> on node <strong>${activeAlarm.node}</strong>: <br><code style="font-family:'JetBrains Mono'; font-size:0.85rem; color:#ffd8bf">${activeAlarm.text}</code>`;
+        alarmDesc.innerHTML = `<span style="color:var(--danger); font-weight:800;">${typeLabel}</span> on node <strong>${activeAlarm.node.replace("spark-", "")}</strong>: <br><code style="font-family:'JetBrains Mono'; font-size:0.85rem; color:#ffd8bf">${activeAlarm.text}</code>`;
     } else {
         alarmBanner.style.display = "none";
     }

@@ -417,37 +417,7 @@ const App = () => {
                         const isThrashing = iowaitVal > 8.0;
                         const isMemorySaturated = psiSome > 10.0;
 
-                        // GPU sub-panel
-                        let gpuBlock = null;
-                        if (node.gpu && node.gpu.online) {
-                            const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
-                            const powerLimit = node.gpu.power_limit || 300;
-                            
-                            gpuBlock = (
-                                <div className="border-t border-nordicBorder pt-4 mt-4">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="text-[9px] font-bold text-nordicMuted tracking-wider uppercase">GPU Stats</span>
-                                        {node.gpu.throttle_reason && node.gpu.throttle_reason !== "None" && (
-                                            <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-2 py-0.5 font-bold uppercase tracking-wider">
-                                                {node.gpu.throttle_reason}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-2 justify-between">
-                                        {CircularGauge({ value: node.gpu.gpu_util, label: 'LOAD', colorFn: getGoodBadColor })}
-                                        {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor })}
-                                        {CircularGauge({ value: node.gpu.power_draw, maxVal: powerLimit, label: 'POWER', suffix: "W", colorFn: getStrongWeakColor })}
-                                        {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor })}
-                                    </div>
-                                </div>
-                            );
-                        } else {
-                            gpuBlock = (
-                                <div className="border-t border-nordicBorder pt-3 mt-3 flex items-center justify-center py-2 text-center">
-                                    <p className="text-[9px] font-bold tracking-widest text-zinc-600 uppercase">GPU Inactive</p>
-                                </div>
-                            );
-                        }
+                        const vramPerc = node.gpu && node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
 
                         return (
                             <div key={nodeId} className="node-card-3d gsap-card glass-panel p-5 relative flex flex-col justify-between border-nordicBorder bg-nordicCard">
@@ -456,20 +426,41 @@ const App = () => {
                                     <div>
                                         <h3 className="text-sm font-bold text-nordicText tracking-wider flex items-center gap-1.5 uppercase">
                                             {cleanId}
-                                            {isMemorySaturated && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono">PSI</span>}
-                                            {isSwapping && <span className="text-[7px] bg-nordicGold/10 border border-nordicGold/20 text-nordicGold px-1.5 py-0.5 font-mono">SWAP</span>}
-                                            {isThrashing && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono">THRASH</span>}
+                                            {isMemorySaturated && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold">PSI</span>}
+                                            {isSwapping && <span className="text-[7px] bg-nordicGold/10 border border-nordicGold/20 text-nordicGold px-1.5 py-0.5 font-mono font-bold">SWAP</span>}
+                                            {isThrashing && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold">THRASH</span>}
+                                            {node.gpu && node.gpu.online && node.gpu.throttle_reason && node.gpu.throttle_reason !== "None" && (
+                                                <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold pulsing-badge animate-pulse">
+                                                    THROTTLE: {node.gpu.throttle_reason.toUpperCase()}
+                                                </span>
+                                            )}
                                         </h3>
                                     </div>
                                     <span className="text-[8px] bg-nordicGreen/10 border border-nordicGreen/20 text-nordicGreen px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider">Online</span>
                                 </div>
 
-                                {/* System Radial Dials */}
-                                <div className="flex gap-2 justify-between mb-4">
+                                {/* Gauges Container (System + GPU side-by-side) */}
+                                <div className="flex gap-2 justify-between items-stretch mb-4 bg-zinc-950/15 p-2 rounded-lg border border-nordicBorder/30">
+                                    {/* System Stats */}
                                     {CircularGauge({ value: node.cpu, label: 'CPU', colorFn: getGoodBadColor })}
                                     {CircularGauge({ value: ramPerc, label: 'RAM', colorFn: getGoodBadColor })}
                                     {swapTotal > 0 && CircularGauge({ value: swapPerc, label: 'SWAP', colorFn: getGoodBadColor })}
                                     {CircularGauge({ value: node.disk.perc, label: 'DISK', colorFn: getGoodBadColor })}
+                                    
+                                    {/* Divider if GPU is active */}
+                                    {node.gpu && node.gpu.online && (
+                                        <div className="w-[1px] bg-nordicBorder self-stretch mx-1.5 my-1" />
+                                    )}
+                                    
+                                    {/* GPU Stats */}
+                                    {node.gpu && node.gpu.online && (
+                                        <React.Fragment>
+                                            {CircularGauge({ value: node.gpu.gpu_util, label: 'GPU', colorFn: getGoodBadColor })}
+                                            {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor })}
+                                            {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: 'PWR', suffix: "W", colorFn: getStrongWeakColor })}
+                                            {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor })}
+                                        </React.Fragment>
+                                    )}
                                 </div>
 
                                 {/* Micro Details */}
@@ -485,9 +476,6 @@ const App = () => {
                                         <span>Write: <span className="text-nordicText font-bold">{writeRate >= 1024 ? `${(writeRate/1024).toFixed(1)} MB/s` : `${writeRate.toFixed(0)} KB/s`}</span></span>
                                     </div>
                                 </div>
-
-                                {/* GPU stats */}
-                                {gpuBlock}
                             </div>
                         );
                     })}

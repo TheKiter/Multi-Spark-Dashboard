@@ -475,7 +475,9 @@ class TelemetryAPIHandler(http.server.BaseHTTPRequestHandler):
                 # Fetch each active vLLM instance metrics
                 for p in vllm_ports:
                     name = "hermes4-70b" if p == 8001 else ("hermes4-14b" if p == 8002 else f"vllm-{p}")
-                    vllm_data[name] = get_vllm_instance_metrics(ip, p)
+                    metrics_obj = get_vllm_instance_metrics(ip, p)
+                    metrics_obj["node_id"] = endpoint_node.get("id")
+                    vllm_data[name] = metrics_obj
 
             payload = {
                 "nodes": node_results,

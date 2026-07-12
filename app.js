@@ -802,7 +802,14 @@ const App = () => {
                                         return (
                                             <div key={modelName} className="extruded-raised bg-surface p-5 rounded-xl space-y-3">
                                                 <div className="flex justify-between items-center text-[11px] font-bold font-mono border-b border-white/5 pb-2">
-                                                    <span className="text-on-surface uppercase tracking-wider">{modelName}</span>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-on-surface uppercase tracking-wider">{modelName}</span>
+                                                        {v.node_id && (
+                                                            <span className="text-[9px] text-on-surface-variant font-mono uppercase opacity-65">
+                                                                Host: {v.node_id.replace("spark-", "")}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <span className={`font-black uppercase ${v.online ? "text-tertiary glow-teal" : "text-red-400"}`}>
                                                         {v.online ? "ONLINE" : "OFFLINE"}
                                                     </span>

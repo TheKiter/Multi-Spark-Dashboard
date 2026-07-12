@@ -689,49 +689,7 @@ const App = () => {
                                 </div>
                             )}
                             
-                            {/* Bento Section */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-                                <div className="lg:col-span-2 extruded-raised bg-surface rounded-xl p-container-padding h-64 relative overflow-hidden flex flex-col justify-between">
-                                    <div className="flex justify-between items-center mb-4 z-10">
-                                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Global Latency Distribution</h3>
-                                        <span className="px-2 py-0.5 bg-tertiary/10 text-tertiary text-[8px] rounded border border-tertiary/20 font-bold uppercase animate-pulse">LIVE</span>
-                                    </div>
-                                    
-                                    <div className="flex items-end justify-between gap-2 h-32 px-2 pb-2 mt-auto">
-                                        <div className="w-full bg-tertiary/20 rounded-t h-[40%] hover:bg-tertiary/45 transition-colors"></div>
-                                        <div className="w-full bg-tertiary/30 rounded-t h-[55%] hover:bg-tertiary/45 transition-colors"></div>
-                                        <div className="w-full bg-tertiary/40 rounded-t h-[80%] hover:bg-tertiary/45 transition-colors"></div>
-                                        <div className="w-full bg-tertiary/65 rounded-t h-[95%] hover:bg-tertiary/45 transition-colors"></div>
-                                        <div className="w-full bg-secondary/65 rounded-t h-[60%] hover:bg-secondary/45 transition-colors"></div>
-                                        <div className="w-full bg-tertiary/40 rounded-t h-[45%] hover:bg-tertiary/45 transition-colors"></div>
-                                        <div className="w-full bg-tertiary/20 rounded-t h-[20%] hover:bg-tertiary/45 transition-colors"></div>
-                                    </div>
-                                    
-                                    <div className="flex justify-between text-[9px] font-mono text-on-surface-variant opacity-60 mt-1">
-                                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col justify-between min-h-[256px]">
-                                    <div>
-                                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-2">Cluster Redundancy</h3>
-                                        <p className="font-label-mono text-label-mono text-on-surface-variant opacity-70">Redundancy factor remains at 3.1x. All primary streams are operational and balanced.</p>
-                                    </div>
-                                    <div className="flex justify-center py-2">
-                                        <div className="relative w-24 h-24 flex items-center justify-center">
-                                            <svg className="w-full h-full transform -rotate-90">
-                                                <circle className="text-surface-container-highest" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeWidth="8"></circle>
-                                                <circle className="text-tertiary glow-teal" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeDasharray="251.2" strokeDashoffset="25.12" strokeWidth="8"></circle>
-                                            </svg>
-                                            <span className="absolute font-headline-sm text-headline-sm text-tertiary font-bold">90%</span>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setActiveTab("psi")}
-                                            className="w-full py-2.5 recessed-inset rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary hover:scale-[1.01] transition-all">
-                                        View Detailed Diagnostics
-                                    </button>
-                                </div>
-                            </div>
+
                         </div>
                     )}
                     

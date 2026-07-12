@@ -656,7 +656,7 @@ const App = () => {
                                                                 {isGpuOnline ? (
                                                                     <div className="flex items-center gap-4">
                                                                         <span className="px-2 py-1 bg-surface-container-high rounded text-[9px] border border-tertiary/10 font-bold uppercase">
-                                                                            {node.gpu.gpu_name.replace("NVIDIA", "").replace("Accelerator", "").trim()}
+                                                                            {(node.gpu.gpu_name || "GPU").replace("NVIDIA", "").replace("Accelerator", "").trim()}
                                                                         </span>
                                                                         <div className="flex flex-col gap-1">
                                                                             <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}\u00b0C / {node.gpu.gpu_util}% Load</span>
@@ -758,7 +758,7 @@ const App = () => {
                                         <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
                                             <div className="flex justify-between items-center border-b border-white/5 pb-2">
                                                 <span className="font-bold text-on-surface uppercase font-label-mono">Node {cleanId}</span>
-                                                <span className="text-[9px] bg-tertiary/10 border border-tertiary/20 text-tertiary px-2 py-0.5 rounded font-bold">{node.gpu.gpu_name.replace("NVIDIA", "").trim()}</span>
+                                                <span className="text-[9px] bg-tertiary/10 border border-tertiary/20 text-tertiary px-2 py-0.5 rounded font-bold">{(node.gpu.gpu_name || "GPU").replace("NVIDIA", "").trim()}</span>
                                             </div>
                                             
                                             <div className="grid grid-cols-2 gap-4">
@@ -775,7 +775,7 @@ const App = () => {
                                             </div>
                                             
                                             <div className="flex gap-2">
-                                                <button onClick={() => setLogModal({ node_id: nodeId, type: "service", name: "nvml", logs: `NVML status on ${cleanId} is normal.\nGPU Model: ${node.gpu.gpu_name}\nThrottle Reason: ${node.gpu.throttle_reason}\nDriver Version: NV-535.129.03` })}
+                                                <button onClick={() => setLogModal({ node_id: nodeId, type: "service", name: "nvml", logs: `NVML status on ${cleanId} is normal.\nGPU Model: ${node.gpu.gpu_name || "NVIDIA GPU"}\nThrottle Reason: ${node.gpu.throttle_reason}\nDriver Version: NV-535.129.03` })}
                                                         className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary transition-all border border-white/5 active:scale-95 text-[10px] uppercase font-bold text-center">
                                                     Diagnostics
                                                 </button>

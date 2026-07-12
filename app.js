@@ -88,6 +88,7 @@ const App = () => {
     const [dismissedAlarms, setDismissedAlarms] = React.useState(new Set());
     const [clock, setClock] = React.useState("00:00:00");
     const [isUpdating, setIsUpdating] = React.useState(false);
+    const [selectedNodeId, setSelectedNodeId] = React.useState(null);
     
     const logIntervalRef = React.useRef(null);
     
@@ -465,8 +466,11 @@ const App = () => {
                                         const cleanId = nodeId.replace("spark-", "");
                                         
                                         if (!node.online) {
+                                            const isSelected = selectedNodeId === nodeId;
                                             return (
-                                                <div key={nodeId} className="extruded-raised flex flex-col justify-center items-center h-[240px] p-6 text-center bg-surface opacity-55">
+                                                <div key={nodeId} 
+                                                     onClick={() => setSelectedNodeId(nodeId)}
+                                                     className={`extruded-raised cursor-pointer flex flex-col justify-center items-center h-[240px] p-6 text-center bg-surface opacity-55 transition-all hover:scale-[1.01] ${isSelected ? 'border border-tertiary shadow-[0_0_12px_rgba(20,184,166,0.25)]' : ''}`}>
                                                     <span className="material-symbols-outlined text-red-400 text-3xl mb-2">error</span>
                                                     <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">{cleanId}</h3>
                                                     <p className="text-[10px] font-mono text-outline-variant mt-1">NODE OFFLINE</p>
@@ -492,8 +496,11 @@ const App = () => {
                                         
                                         const vramPerc = node.gpu && node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
                                         
+                                        const isSelected = selectedNodeId === nodeId;
                                         return (
-                                            <div key={nodeId} className="extruded-raised p-5 flex flex-col justify-between bg-surface relative">
+                                            <div key={nodeId} 
+                                                 onClick={() => setSelectedNodeId(nodeId)}
+                                                 className={`extruded-raised cursor-pointer p-5 flex flex-col justify-between bg-surface relative transition-all hover:scale-[1.01] ${isSelected ? 'border border-tertiary shadow-[0_0_12px_rgba(20,184,166,0.25)]' : ''}`}>
                                                 {/* Card Header */}
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
@@ -573,14 +580,17 @@ const App = () => {
                                                     const cleanId = nodeId.replace("spark-", "");
                                                     
                                                     if (!node.online) {
+                                                        const isSelected = selectedNodeId === nodeId;
                                                         return (
-                                                            <tr key={nodeId} className="opacity-55 bg-surface-container-lowest/10">
+                                                            <tr key={nodeId} 
+                                                                onClick={() => setSelectedNodeId(nodeId)}
+                                                                className={`cursor-pointer opacity-55 transition-colors ${isSelected ? 'bg-surface-container-high/65 hover:bg-surface-container-high' : 'bg-surface-container-lowest/10 hover:bg-surface-container-low/20'}`}>
                                                                 <td className="p-4 font-bold text-red-400 flex items-center gap-2">
                                                                     <span className="material-symbols-outlined text-[16px]">error</span>
                                                                     {cleanId}
                                                                 </td>
                                                                 <td className="p-4 text-outline-variant italic" colSpan="4">OFFLINE</td>
-                                                            </tr>
+                                                              </tr>
                                                         );
                                                     }
                                                     
@@ -588,8 +598,11 @@ const App = () => {
                                                     const isGpuOnline = node.gpu && node.gpu.online;
                                                     const vllmOnline = Object.values(metrics.vllm).some(v => v.node_id === nodeId && v.online);
                                                     
+                                                    const isSelected = selectedNodeId === nodeId;
                                                     return (
-                                                        <tr key={nodeId} className="hover:bg-surface-container-low transition-colors group">
+                                                        <tr key={nodeId} 
+                                                            onClick={() => setSelectedNodeId(nodeId)}
+                                                            className={`cursor-pointer transition-colors group ${isSelected ? 'bg-surface-container-high/65 hover:bg-surface-container-high' : 'hover:bg-surface-container-low'}`}>
                                                             <td className="p-4">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="w-8 h-8 rounded-lg bg-surface-container-high recessed-inset flex items-center justify-center">
@@ -649,6 +662,99 @@ const App = () => {
                                 </div>
                             )}
                             
+                            {/* Selected Node Details (Dockers and Software) */}
+                            {selectedNodeId && metrics.nodes[selectedNodeId] && (
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding space-y-6">
+                                    <div className="flex justify-between items-center border-b border-outline-variant/15 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="material-symbols-outlined text-tertiary text-[20px]">terminal</span>
+                                            <h3 className="font-bold text-sm text-on-surface uppercase tracking-wider">
+                                                Node {selectedNodeId.replace("spark-", "")} Software & Container Diagnostics
+                                            </h3>
+                                        </div>
+                                        <button onClick={() => setSelectedNodeId(null)}
+                                                className="text-on-surface-variant hover:text-red-400 font-label-mono text-[9px] uppercase tracking-wider px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest transition-all border border-white/5">
+                                            Close Inspector
+                                        </button>
+                                    </div>
+                                    
+                                    {metrics.nodes[selectedNodeId].online ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-[10px]">
+                                            {/* Containerized Processes (Docker) */}
+                                            <div className="space-y-3">
+                                                <h4 className="font-bold text-tertiary uppercase tracking-wider text-[9px] border-b border-white/5 pb-1 flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[12px]">dock</span>
+                                                    Docker Containers (Loaded & Unloaded)
+                                                </h4>
+                                                <div className="divide-y divide-outline-variant/10 max-h-[300px] overflow-y-auto pr-1">
+                                                    {metrics.nodes[selectedNodeId].dockers && metrics.nodes[selectedNodeId].dockers.length > 0 ? (
+                                                        metrics.nodes[selectedNodeId].dockers.map(d => {
+                                                            const isRunning = d.state === "running";
+                                                            return (
+                                                                <div key={d.name} className="py-2.5 flex justify-between items-center hover:bg-surface-container-low/20 px-1 rounded transition-colors">
+                                                                    <div className="flex flex-col gap-0.5 max-w-[70%]">
+                                                                        <span className="text-on-surface font-semibold truncate">{d.name}</span>
+                                                                        <span className="text-[8px] text-on-surface-variant/75 truncate">{d.image}</span>
+                                                                        <span className="text-[8px] text-on-surface-variant/50 truncate">{d.status}</span>
+                                                                    </div>
+                                                                    <div className="text-right flex flex-col items-end gap-1">
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${isRunning ? "bg-tertiary/10 text-tertiary border border-tertiary/20" : "bg-outline-variant/10 text-on-surface-variant/55 border border-outline-variant/10"}`}>
+                                                                            {d.state.toUpperCase()}
+                                                                        </span>
+                                                                        <span className="text-[8px] text-on-surface font-mono opacity-85">
+                                                                            Mem: {d.mem_usage.split(" / ")[0]}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <span className="text-on-surface-variant/50 italic">No Docker containers detected.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Native Software / Processes */}
+                                            <div className="space-y-3">
+                                                <h4 className="font-bold text-secondary uppercase tracking-wider text-[9px] border-b border-white/5 pb-1 flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[12px]">settings_applications</span>
+                                                    Running Software Services (Memory Footprint)
+                                                </h4>
+                                                <div className="divide-y divide-outline-variant/10 max-h-[300px] overflow-y-auto pr-1">
+                                                    {metrics.nodes[selectedNodeId].hogs && metrics.nodes[selectedNodeId].hogs.length > 0 ? (
+                                                        metrics.nodes[selectedNodeId].hogs.map((h, idx) => {
+                                                            const ramTotalBytes = (metrics.nodes[selectedNodeId].ram.total || 128000) * 1024 * 1024;
+                                                            const estMemBytes = (h.mem / 100) * ramTotalBytes;
+                                                            const estMemDisplay = estMemBytes > 1024 * 1024 * 1024
+                                                                ? `${(estMemBytes / (1024*1024*1024)).toFixed(1)} GiB`
+                                                                : `${(estMemBytes / (1024*1024)).toFixed(0)} MiB`;
+                                                                
+                                                            return (
+                                                                <div key={idx} className="py-2.5 flex justify-between items-center hover:bg-surface-container-low/20 px-1 rounded transition-colors">
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <span className="text-on-surface font-semibold">{h.name}</span>
+                                                                        <span className="text-[8px] text-on-surface-variant/50">PID: {h.pid}</span>
+                                                                    </div>
+                                                                    <div className="text-right flex flex-col items-end gap-0.5">
+                                                                        <span className="text-on-surface font-bold">{estMemDisplay}</span>
+                                                                        <span className="text-[8px] text-on-surface-variant/65">Share: {h.mem}% RAM</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <span className="text-on-surface-variant/50 italic">No software memory footprint data.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="py-8 text-center text-on-surface-variant/55 italic">
+                                            Node is offline. Diagnostics unavailable.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                         </div>
                     )}

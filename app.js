@@ -1,4 +1,4 @@
-/* app.js - Nordic Minimalist Cluster Telemetry Dashboard */
+/* app.js - Neumorphic Telemetry & Control Suite (Stitch Redesign) */
 
 const API_URL = "/api/metrics";
 const CONTROL_CONTAINER_URL = "/api/control/container";
@@ -6,7 +6,7 @@ const CONTROL_SERVICE_URL = "/api/control/service";
 const CONTROL_LOGS_URL = "/api/control/logs";
 const CONTROL_TASK_CANCEL_URL = "/api/control/task/cancel";
 
-// Nordic Minimalist indicator colors in 10% increments
+// Quantized 10% step HSL color mappings
 function getGoodBadColor(percentage) {
     const step = Math.round(percentage / 10) * 10;
     // Interpolates between Emerald HSL(159, 70%, 48%) and Rose HSL(350, 70%, 48%) in 10% steps
@@ -21,79 +21,8 @@ function getStrongWeakColor(percentage) {
     return `hsl(${h}, 65%, 52%)`;
 }
 
-// SVG Vector Icons for light-weight rendering
-const Icons = {
-    Cpu: () => (
-        <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <rect width="16" height="16" x="4" y="4" rx="2"/>
-            <path d="M9 20v2M15 20v2M20 9h2M20 15h2M15 2v2M9 2v2M4 9H2M4 15H2M9 9h6v6H9z"/>
-        </svg>
-    ),
-    Database: () => (
-        <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
-        </svg>
-    ),
-    HardDrive: () => (
-        <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <rect width="20" height="8" x="2" y="3" rx="2"/>
-            <rect width="20" height="8" x="2" y="13" rx="2"/>
-            <path d="M6 7h.01M6 17h.01"/>
-            <path d="M20 7h.01M20 17h.01"/>
-        </svg>
-    ),
-    Zap: () => (
-        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
-    ),
-    Thermometer: () => (
-        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
-        </svg>
-    ),
-    Terminal: () => (
-        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="m5 17 5-5-5-5M12 19h8"/>
-        </svg>
-    ),
-    Play: () => (
-        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-        </svg>
-    ),
-    Square: () => (
-        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-            <rect width="18" height="18" x="3" y="3" rx="2"/>
-        </svg>
-    ),
-    RefreshCw: () => (
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-            <path d="M16 16h5v5M3 3v5h5"/>
-        </svg>
-    ),
-    AlertTriangle: () => (
-        <svg className="w-5 h-5 text-nordicRed" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-            <line x1="12" x2="12" y1="9" y2="13"/>
-            <line x1="12" x2="12.01" y1="17" y2="17"/>
-        </svg>
-    ),
-    Server: () => (
-        <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
-            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
-            <line x1="6" x2="6.01" y1="6" y2="6"/>
-            <line x1="6" x2="6.01" y1="18" y2="18"/>
-        </svg>
-    )
-};
-
-// Dial Gauge Component
-const CircularGauge = ({ value, maxVal = 100, label, suffix = "%", colorFn }) => {
+// 10-Segment Vertical Gauge
+const CircularGauge = ({ value, maxVal = 100, label, suffix = "%", colorFn, isLightTheme }) => {
     const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
     const activeSegments = Math.round(perc / 10);
     
@@ -101,48 +30,68 @@ const CircularGauge = ({ value, maxVal = 100, label, suffix = "%", colorFn }) =>
     for (let i = 9; i >= 0; i--) {
         const isActive = i < activeSegments;
         const segmentPercent = (i + 1) * 10;
-        const color = isActive ? colorFn(segmentPercent) : '#27272a'; // Zinc-800 for inactive
+        const color = isActive ? colorFn(segmentPercent) : (isLightTheme ? '#e8d4cc' : '#272a2e');
         
         segments.push(
             <div key={i} 
-                 className="h-1 w-6 rounded-sm transition-all duration-300"
+                 className="h-1.5 w-6 rounded-sm transition-all duration-300"
                  style={{ backgroundColor: color }} />
         );
     }
     
     return (
         <div className="gauge-item flex flex-col items-center gap-1 flex-1 select-none">
-            {/* Value on top */}
-            <span className="text-[9px] font-bold font-mono text-zinc-300">
+            <span className="text-[9px] font-bold font-mono text-on-surface opacity-80">
                 {value}{suffix}
             </span>
-            
-            {/* 10-segment stepped vertical bar */}
-            <div className="flex flex-col gap-[2px] p-0.5 bg-zinc-950/30 rounded border border-zinc-800/40 my-1">
+            <div className="flex flex-col gap-[2px] p-[2px] recessed-inset bg-surface-container-low rounded-md overflow-hidden">
                 {segments}
             </div>
-            
-            {/* Label below */}
-            <span className="text-[8px] font-bold text-nordicMuted tracking-wider uppercase">
+            <span className="text-[8px] font-mono tracking-wider text-on-surface-variant font-bold uppercase mt-1 opacity-70">
                 {label}
             </span>
         </div>
     );
 };
 
-// Main App component
+// 10-Segment Horizontal Gauge (For high density table views)
+const HorizontalSteppedGauge = ({ value, maxVal = 100, label, colorFn, isLightTheme }) => {
+    const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
+    const activeSegments = Math.round(perc / 10);
+    
+    return (
+        <div className="flex flex-col gap-1 w-24">
+            <div className="flex justify-between text-[9px] text-on-surface-variant font-mono">
+                <span>{label}</span>
+                <span>{value}%</span>
+            </div>
+            <div className="flex gap-[2px] h-1.5 p-[1px] recessed-inset bg-surface-container rounded-sm overflow-hidden w-full">
+                {[...Array(10)].map((_, i) => {
+                    const isActive = i < activeSegments;
+                    const segmentPercent = (i + 1) * 10;
+                    const color = isActive ? colorFn(segmentPercent) : (isLightTheme ? '#e8d4cc' : '#272a2e');
+                    return (
+                        <div key={i} className="h-full flex-1 rounded-[1px] transition-all" style={{ backgroundColor: color }} />
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 const App = () => {
     const [metrics, setMetrics] = React.useState(null);
-    const [is3d, setIs3d] = React.useState(false); // Default flat for Nordic Minimalist
+    const [theme, setTheme] = React.useState(() => localStorage.getItem("spark-theme") || "dark");
+    const [activeTab, setActiveTab] = React.useState("all-nodes");
+    const [viewMode, setViewMode] = React.useState("table"); // Default to high density table view as designed in Stitch
     const [logModal, setLogModal] = React.useState(null); // { node_id, type, name, logs }
     const [dismissedAlarms, setDismissedAlarms] = React.useState(new Set());
     const [clock, setClock] = React.useState("00:00:00");
     const [isUpdating, setIsUpdating] = React.useState(false);
     
-    const cardGridRef = React.useRef(null);
     const logIntervalRef = React.useRef(null);
-
-    // Clock lifecycle
+    
+    // Live clock update
     React.useEffect(() => {
         const timer = setInterval(() => {
             const now = new Date();
@@ -150,108 +99,102 @@ const App = () => {
         }, 1000);
         return () => clearInterval(timer);
     }, []);
-
-    // Telemetry fetcher
+    
+    // Telemetry fetch & polling
     const fetchTelemetry = async () => {
         try {
+            setIsUpdating(true);
             const res = await fetch(API_URL);
-            if (!res.ok) throw new Error("API Offline");
             const data = await res.json();
             setMetrics(data);
-        } catch (err) {
-            console.error("Telemetry fetch error:", err);
+        } catch (e) {
+            console.error("Failed fetching telemetry:", e);
+        } finally {
+            setIsUpdating(false);
         }
     };
-
+    
     React.useEffect(() => {
         fetchTelemetry();
         const poll = setInterval(fetchTelemetry, 2500);
         return () => clearInterval(poll);
     }, []);
-
-    // Logs Poller
+    
+    // Log polling modal handler
     React.useEffect(() => {
         if (logModal) {
             const pollLogs = async () => {
                 try {
                     const res = await fetch(`${CONTROL_LOGS_URL}?node_id=${logModal.node_id}&type=${logModal.type}&name=${logModal.name}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        setLogModal(prev => prev ? { ...prev, logs: data.logs } : null);
-                    }
-                } catch (err) {
-                    console.error("Logs error:", err);
+                    const data = await res.json();
+                    setLogModal(prev => prev ? { ...prev, logs: data.logs } : null);
+                } catch (e) {
+                    console.error("Error polling logs:", e);
                 }
             };
             pollLogs();
-            logIntervalRef.current = setInterval(pollLogs, 2000);
+            logIntervalRef.current = setInterval(pollLogs, 3000);
         } else {
-            if (logIntervalRef.current) {
-                clearInterval(logIntervalRef.current);
-                logIntervalRef.current = null;
-            }
+            if (logIntervalRef.current) clearInterval(logIntervalRef.current);
         }
         return () => {
             if (logIntervalRef.current) clearInterval(logIntervalRef.current);
         };
-    }, [logModal?.node_id, logModal?.type, logModal?.name]);
-
-    // Handle Control action
+    }, [logModal]);
+    
+    // Theme toggle mapping
+    React.useEffect(() => {
+        const root = document.documentElement;
+        if (theme === "light") {
+            root.classList.add("light");
+            root.classList.remove("dark");
+        } else {
+            root.classList.add("dark");
+            root.classList.remove("light");
+        }
+        localStorage.setItem("spark-theme", theme);
+    }, [theme]);
+    
+    // Control Action executors
     const sendControlAction = async (type, nodeId, name, action) => {
         const verb = action === "stop" ? "KILL/STOP" : (action === "restart" ? "RESTART" : "START");
-        if (!confirm(`Are you sure you want to ${verb} the ${type} "${name}" on node "${nodeId.replace("spark-", "")}"?`)) {
-            return;
-        }
+        if (!confirm(`Are you sure you want to trigger ${verb} on ${name} (${nodeId})?`)) return;
         
-        setIsUpdating(true);
-        const url = type === "container" ? CONTROL_CONTAINER_URL : CONTROL_SERVICE_URL;
-        const body = type === "container" 
-            ? { node_id: nodeId, container_name: name, action: action }
-            : { node_id: nodeId, service_name: name, action: action };
-            
         try {
+            const url = type === "container" ? CONTROL_CONTAINER_URL : CONTROL_SERVICE_URL;
+            const body = type === "container" 
+                ? { node_id: nodeId, container_name: name, action }
+                : { node_id: nodeId, service_name: name, action };
+                
             const res = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body)
             });
-            if (res.ok) {
-                await fetchTelemetry();
-            } else {
-                alert(`Action failed: ${res.statusText}`);
-            }
-        } catch (err) {
-            alert(`Error: ${err.message}`);
-        } finally {
-            setIsUpdating(false);
+            const data = await res.json();
+            alert(data.status || data.error || "Action completed.");
+            fetchTelemetry();
+        } catch (e) {
+            alert("Failed to send action: " + e.message);
         }
     };
-
-    // Cancel FastAPI Task
+    
     const cancelQueueTask = async (taskId) => {
-        if (!confirm(`Are you sure you want to cancel FastAPI Queue Job: ${taskId}?`)) {
-            return;
-        }
-        
-        setIsUpdating(true);
+        if (!confirm(`Cancel task ${taskId}?`)) return;
         try {
             const res = await fetch(CONTROL_TASK_CANCEL_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ task_id: taskId })
             });
-            if (res.ok) {
-                await fetchTelemetry();
-            } else {
-                alert("Cancellation failed.");
-            }
-        } catch (err) {
-            alert(`Error: ${err.message}`);
-        } finally {
-            setIsUpdating(false);
+            const data = await res.json();
+            alert(data.status || data.error || "Task cancelled.");
+            fetchTelemetry();
+        } catch (e) {
+            alert("Failed to cancel task: " + e.message);
         }
     };
-
+    
     const dismissAlarm = (logText) => {
         setDismissedAlarms(prev => {
             const updated = new Set(prev);
@@ -259,19 +202,21 @@ const App = () => {
             return updated;
         });
     };
-
+    
     if (!metrics) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-nordicBg">
-                <div className="text-center font-sans">
-                    <div className="inline-block w-8 h-8 border border-t-zinc-100 border-r-transparent border-b-zinc-100 border-l-transparent rounded-full animate-spin"></div>
-                    <div className="mt-4 text-nordicMuted text-xs tracking-widest font-medium">SYNCING DATASETS...</div>
+            <div className="flex items-center justify-center min-h-screen bg-surface">
+                <div className="text-center">
+                    <div className="inline-block w-8 h-8 border-2 border-t-tertiary border-r-transparent border-b-tertiary border-l-transparent rounded-full animate-spin"></div>
+                    <div className="mt-4 text-on-surface-variant text-[11px] tracking-widest font-mono font-medium uppercase">TELEMETRY STREAM INITIALIZING...</div>
                 </div>
             </div>
         );
     }
-
-    // Extract alarm events
+    
+    const isLightTheme = theme === "light";
+    
+    // Compile Warnings and Alarms
     let activeAlarm = null;
     for (const nid in metrics.nodes) {
         const n = metrics.nodes[nid];
@@ -279,431 +224,893 @@ const App = () => {
             const latest = n.oom_events[n.oom_events.length - 1];
             const logText = `[${nid}] ${latest.text}`;
             if (!dismissedAlarms.has(logText)) {
-                activeAlarm = { node: nid, type: latest.type, text: latest.text, logText };
+                activeAlarm = { type: "oom", node: nid, text: latest.text, logText };
+                break;
+            }
+        }
+        if (n.online && n.xid_events && n.xid_events.length > 0) {
+            const latest = n.xid_events[n.xid_events.length - 1];
+            const logText = `[${nid}] ${latest.text}`;
+            if (!dismissedAlarms.has(logText)) {
+                activeAlarm = { type: "xid", node: nid, text: latest.text, logText };
                 break;
             }
         }
     }
-
-    // Extract Loop alert
+    
     let loopAlert = null;
-    for (const nid in metrics.nodes) {
-        const n = metrics.nodes[nid];
-        if (n.online && n.chat_loop_diagnostics && n.chat_loop_diagnostics.is_looping) {
-            loopAlert = {
-                node: nid,
-                score: Math.round(n.chat_loop_diagnostics.repetition_score * 100),
-                prompt: n.chat_loop_diagnostics.latest_prompt,
-                response: n.chat_loop_diagnostics.latest_response
-            };
+    for (const m in metrics.vllm) {
+        const v = metrics.vllm[m];
+        if (v.online && v.chat_loop_diagnostics && v.chat_loop_diagnostics.repetition_warning) {
+            loopAlert = { node: v.node_id, score: Math.round(v.chat_loop_diagnostics.repetition_score * 100) };
             break;
         }
     }
-
-    // Compute active queue sums
-    let totalRunning = 0;
-    let totalWaiting = 0;
-    for (const m in metrics.vllm) {
-        totalWaiting += metrics.vllm[m].waiting_requests || 0;
-        totalRunning += metrics.vllm[m].running_requests || 0;
-    }
-    const queueActiveCount = metrics.queue.active ? metrics.queue.active.length : 0;
-    const queueWaitingCount = metrics.queue.completed ? metrics.queue.completed.filter(t => t.status === "queued" || t.status === "waiting").length : 0;
-
+    
+    // Summary Calculations
+    const nodeIds = Object.keys(metrics.nodes);
+    const totalNodes = nodeIds.length;
+    const onlineNodes = nodeIds.filter(nid => metrics.nodes[nid].online).length;
+    
+    // Average GPU Utilization
+    const gpuNodes = nodeIds.filter(nid => metrics.nodes[nid].online && metrics.nodes[nid].gpu && metrics.nodes[nid].gpu.online);
+    const avgGpuLoad = gpuNodes.length 
+        ? Math.round(gpuNodes.reduce((acc, nid) => acc + metrics.nodes[nid].gpu.gpu_util, 0) / gpuNodes.length)
+        : 0;
+        
+    // Throughput or KV Cache
+    const activeModels = Object.keys(metrics.vllm).filter(m => metrics.vllm[m].online);
+    const avgKvCache = activeModels.length
+        ? Math.round(activeModels.reduce((acc, m) => acc + metrics.vllm[m].kv_cache_usage, 0) / activeModels.length)
+        : 0;
+        
+    const queueWaitingCount = metrics.queue.waiting ? metrics.queue.waiting.length : 0;
+    
     return (
-        <div className="max-w-[1440px] mx-auto p-4 md:p-6 flex flex-col gap-6 relative z-10 font-sans">
-            {/* Header */}
-            <header className="glass-panel px-6 py-4 flex flex-wrap justify-between items-center gap-4 transition-all duration-300">
-                <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-nordicGreen rounded-full shadow-[0_0_6px_#10b981]"></span>
-                    <h1 className="text-sm font-bold tracking-widest text-nordicText uppercase">
-                        SPARK CLUSTER TELEMETRY
-                    </h1>
+        <div className="min-h-screen flex text-on-surface">
+            {/* Sidebar Navigation */}
+            <aside className="h-screen w-64 fixed left-0 top-0 bg-surface flex flex-col p-gutter space-y-4 shadow-[8px_0_16px_var(--shadow-dark)] z-[60] border-r border-white/5">
+                <div className="mb-8">
+                    <h1 className="font-headline-sm text-headline-sm font-bold text-tertiary glow-teal tracking-wider">MS-TELEMETRY</h1>
+                    <p className="font-label-mono text-label-mono text-on-surface-variant opacity-60">Active Session: 0x4F2</p>
                 </div>
                 
-                <div className="flex items-center gap-5 text-xs">
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-nordicMuted uppercase">
-                        <span>CLUSTER SYNCED</span>
-                    </div>
-                    
-                    <span className="font-mono text-zinc-500 tracking-wider text-[11px]">{clock}</span>
-                    
-                    {/* 3D View Toggle */}
-                    <button onClick={() => setIs3d(!is3d)} 
-                            className={`px-3 py-1.5 text-[9px] font-bold tracking-widest rounded-lg border transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
-                                is3d 
-                                ? 'bg-zinc-800 border-zinc-700 text-nordicText' 
-                                : 'bg-transparent border-zinc-800 text-nordicMuted hover:text-nordicText hover:border-zinc-700'
+                <nav className="flex-grow space-y-2 select-none">
+                    <button onClick={() => setActiveTab("all-nodes")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "all-nodes"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
                             }`}>
-                        <Icons.Server />
-                        {is3d ? "3D SPATIAL" : "FLAT ANGLE"}
+                        <span className="material-symbols-outlined text-[18px]">hub</span>
+                        <span>All Nodes</span>
+                    </button>
+                    
+                    <button onClick={() => setActiveTab("gpu")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "gpu"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
+                            }`}>
+                        <span className="material-symbols-outlined text-[18px]">memory</span>
+                        <span>GPU Clusters</span>
+                    </button>
+                    
+                    <button onClick={() => setActiveTab("vllm")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "vllm"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
+                            }`}>
+                        <span className="material-symbols-outlined text-[18px]">lan</span>
+                        <span>vLLM Instances</span>
+                    </button>
+                    
+                    <button onClick={() => setActiveTab("queue")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "queue"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
+                            }`}>
+                        <span className="material-symbols-outlined text-[18px]">hourglass_empty</span>
+                        <span>Queue Status</span>
+                    </button>
+                    
+                    <button onClick={() => setActiveTab("containers")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "containers"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
+                            }`}>
+                        <span className="material-symbols-outlined text-[18px]">dns</span>
+                        <span>Container Health</span>
+                    </button>
+                    
+                    <button onClick={() => setActiveTab("psi")}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
+                                activeTab === "psi"
+                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
+                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
+                            }`}>
+                        <span className="material-symbols-outlined text-[18px]">speed</span>
+                        <span>System PSI</span>
+                    </button>
+                </nav>
+                
+                <div className="pt-4 border-t border-outline-variant/30 flex flex-col gap-2">
+                    <button onClick={() => window.print()}
+                            className="w-full extruded-raised bg-surface-container-high text-tertiary font-label-mono text-label-mono py-2 rounded-lg active:shadow-[inset_4px_4px_8px_var(--shadow-dark)] active:scale-95 transition-all text-center">
+                        Print Screen
+                    </button>
+                    <button onClick={() => {
+                                const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metrics, null, 2));
+                                const dlAnchor = document.createElement('a');
+                                dlAnchor.setAttribute("href", jsonStr);
+                                dlAnchor.setAttribute("download", `spark_telemetry_dump_${Date.now()}.json`);
+                                dlAnchor.click();
+                            }}
+                            className="w-full text-center text-[10px] text-on-surface-variant hover:text-tertiary font-label-mono tracking-wider py-1 border border-transparent hover:border-tertiary/10 rounded">
+                        EXPORT RAW METRICS
                     </button>
                 </div>
-            </header>
-
-            {/* Loop Warning Banner */}
-            {loopAlert && (
-                <div className="glass-panel border-nordicRed/35 bg-red-950/10 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-start gap-3">
-                        <Icons.AlertTriangle />
-                        <div>
-                            <strong className="text-nordicRed text-xs tracking-wider uppercase font-bold">Inference Repetition Warning</strong>
-                            <p className="text-[11px] text-nordicMuted mt-1">
-                                Uniqueness score dropped to <span className="text-nordicRed font-bold">{loopAlert.score}%</span> on node <strong>{loopAlert.node.replace("spark-", "")}</strong>.
-                            </p>
+            </aside>
+            
+            {/* Main Area */}
+            <main className="ml-64 min-h-screen flex flex-col flex-1">
+                {/* Topbar Header */}
+                <header className="w-full h-16 flex justify-between items-center px-margin-desktop sticky top-0 z-50 bg-surface shadow-[8px_8px_16px_var(--shadow-dark),-8px_-8px_16px_var(--shadow-light)] border-b border-white/5">
+                    <div className="flex items-center gap-4">
+                        <span className="font-headline-md text-headline-md font-bold text-tertiary drop-shadow-[0_0_8px_var(--glow-color-teal)] uppercase tracking-wider">
+                            {activeTab.replace("-", " ")}
+                        </span>
+                        
+                        {/* Status Sync Clock */}
+                        <div className="recessed-inset bg-surface-container-low rounded-full px-4 py-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-on-surface-variant text-[16px]">schedule</span>
+                            <span className="text-label-mono font-label-mono text-on-surface-variant font-bold">{clock}</span>
                         </div>
                     </div>
-                    <button onClick={() => sendControlAction('service', loopAlert.node, 'vllm', 'restart')} 
-                            className="bg-nordicRed hover:bg-red-500 text-nordicBg text-[10px] tracking-wider uppercase font-bold px-4 py-2 rounded-lg active:scale-95 transition-all">
-                        Reset vLLM Daemon
-                    </button>
-                </div>
-            )}
-
-            {/* OOM / Xid Alert Banner */}
-            {activeAlarm && (
-                <div className="glass-panel border-nordicRed/35 bg-red-950/10 p-5 flex justify-between items-start gap-4">
-                    <div className="flex items-start gap-3">
-                        <Icons.AlertTriangle />
-                        <div>
-                            <strong className="text-nordicRed text-xs tracking-wider uppercase font-bold">
-                                {activeAlarm.type === "xid" ? "NVIDIA Xid Driver Exception" : "Kernel Out Of Memory Alert"}
-                            </strong>
-                            <p className="text-[11px] text-zinc-400 mt-1 leading-normal font-mono">
-                                Node <strong>{activeAlarm.node.replace("spark-", "")}</strong>: <br/>
-                                <span className="text-zinc-500 font-mono mt-0.5 block">{activeAlarm.text}</span>
-                            </p>
+                    
+                    <div className="flex items-center gap-6">
+                        {/* Theme Toggle Button */}
+                        <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                                className="w-10 h-10 rounded-lg flex items-center justify-center extruded-raised hover-lift bg-surface-container-high text-tertiary">
+                            <span className="material-symbols-outlined">
+                                {isLightTheme ? "dark_mode" : "light_mode"}
+                            </span>
+                        </button>
+                        
+                        {/* Status Badge */}
+                        <div className="flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full border border-tertiary/20">
+                            <span className={`w-2 h-2 rounded-full bg-tertiary animate-pulse ${isLightTheme ? 'bg-sky-500' : 'glow-teal'}`}></span>
+                            <span className="font-label-mono text-label-mono text-tertiary font-bold">SYSTEM ACTIVE</span>
                         </div>
                     </div>
-                    <button onClick={() => dismissAlarm(activeAlarm.logText)} 
-                            className="bg-transparent hover:bg-zinc-800 text-nordicMuted border border-zinc-800 text-[10px] tracking-wider uppercase font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-all">
-                        Dismiss
-                    </button>
-                </div>
-            )}
-
-            {/* Node Dials Grid */}
-            <section className="perspective-container relative z-20">
-                <div ref={cardGridRef} className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 isometric-grid ${is3d ? "active-3d" : ""}`}>
-                    {Object.keys(metrics.nodes).map(nodeId => {
-                        const node = metrics.nodes[nodeId];
-                        const cleanId = nodeId.replace("spark-", "");
-                        
-                        if (!node.online) {
-                            return (
-                                <div key={nodeId} className="node-card-3d gsap-card glass-panel opacity-60 flex flex-col justify-center items-center h-[260px] p-6 text-center border-zinc-800 bg-zinc-950/20">
-                                    <span className="w-10 h-10 rounded-full border border-nordicRed/20 bg-red-500/5 text-nordicRed flex items-center justify-center mb-3">
-                                        <Icons.AlertTriangle />
-                                    </span>
-                                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">{cleanId}</h3>
-                                    <p className="text-[10px] text-zinc-600 mt-1 max-w-[180px] leading-relaxed">Node Offline</p>
+                </header>
+                
+                {/* Dashboard Page Wrapper */}
+                <div className="p-margin-desktop space-y-8 flex-1">
+                    
+                    {/* Alarms Banners */}
+                    {activeAlarm && (
+                        <div className="extruded-raised border-red-500/30 bg-red-950/10 p-5 rounded-xl flex justify-between items-start gap-4 animate-bounce">
+                            <div className="flex items-start gap-3">
+                                <span className="material-symbols-outlined text-red-400 text-3xl">error</span>
+                                <div>
+                                    <strong className="text-red-400 text-xs tracking-wider uppercase font-bold">
+                                        {activeAlarm.type === "xid" ? "NVIDIA Xid Exception" : "Kernel Out Of Memory (OOM) Alert"}
+                                    </strong>
+                                    <p className="text-[11px] text-on-surface-variant mt-1 leading-normal font-mono">
+                                        Node <strong>{activeAlarm.node.replace("spark-", "")}</strong> exception trigger: <br/>
+                                        <span className="text-on-surface font-mono mt-1 block bg-black/30 p-2 rounded border border-white/5">{activeAlarm.text}</span>
+                                    </p>
                                 </div>
-                            );
-                        }
-
-                        const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
-                        const swapTotal = node.ram.swap_total || 0;
-                        const swapUsed = node.ram.swap_used || 0;
-                        const swapPerc = swapTotal ? Math.round((swapUsed / swapTotal) * 100) : 0;
-                        
-                        const iowaitVal = node.iowait || 0.0;
-                        const readRate = node.disk.read_rate || 0.0;
-                        const writeRate = node.disk.write_rate || 0.0;
-                        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
-                        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
-                        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
-
-                        const isSwapping = swapIn > 0.5 || swapOut > 0.5;
-                        const isThrashing = iowaitVal > 8.0;
-                        const isMemorySaturated = psiSome > 10.0;
-
-                        const vramPerc = node.gpu && node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
-
-                        return (
-                            <div key={nodeId} className="node-card-3d gsap-card glass-panel p-5 relative flex flex-col justify-between border-nordicBorder bg-nordicCard">
-                                {/* Header */}
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="text-sm font-bold text-nordicText tracking-wider flex items-center gap-1.5 uppercase">
-                                            {cleanId}
-                                            {isMemorySaturated && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold">PSI</span>}
-                                            {isSwapping && <span className="text-[7px] bg-nordicGold/10 border border-nordicGold/20 text-nordicGold px-1.5 py-0.5 font-mono font-bold">SWAP</span>}
-                                            {isThrashing && <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold">THRASH</span>}
-                                            {node.gpu && node.gpu.online && node.gpu.throttle_reason && node.gpu.throttle_reason !== "None" && (
-                                                <span className="text-[7px] bg-nordicRed/10 border border-nordicRed/20 text-nordicRed px-1.5 py-0.5 font-mono font-bold pulsing-badge animate-pulse">
-                                                    THROTTLE: {node.gpu.throttle_reason.toUpperCase()}
-                                                </span>
-                                            )}
-                                        </h3>
+                            </div>
+                            <button onClick={() => dismissAlarm(activeAlarm.logText)} 
+                                    className="bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant border border-outline-variant/30 text-[10px] tracking-wider uppercase font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-all shadow-[2px_2px_4px_var(--shadow-dark)]">
+                                Dismiss
+                            </button>
+                        </div>
+                    )}
+                    
+                    {loopAlert && (
+                        <div className="extruded-raised border-red-500/30 bg-red-950/10 p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div className="flex items-start gap-3">
+                                <span className="material-symbols-outlined text-red-400 text-3xl">warning</span>
+                                <div>
+                                    <strong className="text-red-400 text-xs tracking-wider uppercase font-bold">vLLM Inference Repetition Warning</strong>
+                                    <p className="text-[11px] text-on-surface-variant mt-1">
+                                        Uniqueness score dropped to <span className="text-red-400 font-bold">{loopAlert.score}%</span> on node <strong>{loopAlert.node.replace("spark-", "")}</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => sendControlAction('service', loopAlert.node, 'vllm', 'restart')} 
+                                    className="bg-red-500 hover:bg-red-400 text-white text-[10px] tracking-wider uppercase font-bold px-4 py-2 rounded-lg active:scale-95 transition-all shadow-[2px_2px_4px_var(--shadow-dark)]">
+                                Reset vLLM Daemon
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* Render active tab */}
+                    {activeTab === "all-nodes" && (
+                        <div className="space-y-8">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
+                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Active Nodes</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-headline-lg text-headline-lg text-tertiary glow-teal">{onlineNodes}</span>
+                                        <span className="font-label-mono text-label-mono text-tertiary/60">/ {totalNodes}</span>
                                     </div>
-                                    <span className="text-[8px] bg-nordicGreen/10 border border-nordicGreen/20 text-nordicGreen px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider">Online</span>
-                                </div>
-
-                                {/* Gauges Container (System + GPU side-by-side) */}
-                                <div className="flex gap-2 justify-between items-stretch mb-4 bg-zinc-950/15 p-2 rounded-lg border border-nordicBorder/30">
-                                    {/* System Stats */}
-                                    {CircularGauge({ value: node.cpu, label: 'CPU', colorFn: getGoodBadColor })}
-                                    {CircularGauge({ value: ramPerc, label: 'RAM', colorFn: getGoodBadColor })}
-                                    {swapTotal > 0 && CircularGauge({ value: swapPerc, label: 'SWAP', colorFn: getGoodBadColor })}
-                                    {CircularGauge({ value: node.disk.perc, label: 'DISK', colorFn: getGoodBadColor })}
-                                    
-                                    {/* Divider if GPU is active */}
-                                    {node.gpu && node.gpu.online && (
-                                        <div className="w-[1px] bg-nordicBorder self-stretch mx-1.5 my-1" />
-                                    )}
-                                    
-                                    {/* GPU Stats */}
-                                    {node.gpu && node.gpu.online && (
-                                        <React.Fragment>
-                                            {CircularGauge({ value: node.gpu.gpu_util, label: 'GPU', colorFn: getGoodBadColor })}
-                                            {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor })}
-                                            {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: 'PWR', suffix: "W", colorFn: getStrongWeakColor })}
-                                            {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor })}
-                                        </React.Fragment>
-                                    )}
-                                </div>
-
-                                {/* Micro Details */}
-                                <div className="border-t border-nordicBorder pt-3 text-[10px] font-mono text-nordicMuted flex flex-col gap-2">
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-nordicBg/40 p-2 rounded border border-nordicBorder">
-                                        <div>I/O Wait: <span className="text-nordicText font-bold">{iowaitVal}%</span></div>
-                                        <div>Mem PSI: <span className="text-nordicText font-bold">{psiSome}%</span></div>
-                                        <div>RAM: <span className="text-nordicText font-bold">{(node.ram.used/1024).toFixed(0)}/{(node.ram.total/1024).toFixed(0)} GB</span></div>
-                                        {swapTotal > 0 && <div>Swap: <span className="text-nordicText font-bold">{(swapUsed/1024).toFixed(0)}/{(swapTotal/1024).toFixed(0)} GB</span></div>}
+                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+                                        <div className="h-full bg-tertiary glow-teal" style={{ width: `${(onlineNodes/totalNodes)*100}%` }}></div>
                                     </div>
-                                    <div className="flex justify-between px-1 text-[9px]">
-                                        <span>Read: <span className="text-nordicText font-bold">{readRate >= 1024 ? `${(readRate/1024).toFixed(1)} MB/s` : `${readRate.toFixed(0)} KB/s`}</span></span>
-                                        <span>Write: <span className="text-nordicText font-bold">{writeRate >= 1024 ? `${(writeRate/1024).toFixed(1)} MB/s` : `${writeRate.toFixed(0)} KB/s`}</span></span>
+                                </div>
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
+                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Global GPU Load</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-headline-lg text-headline-lg text-secondary glow-orange">{avgGpuLoad}%</span>
+                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Avg</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+                                        <div className="h-full bg-secondary glow-orange" style={{ width: `${avgGpuLoad}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
+                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">vLLM KV Cache</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-headline-lg text-headline-lg text-tertiary">{avgKvCache}%</span>
+                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Avg</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+                                        <div className="h-full bg-tertiary" style={{ width: `${avgKvCache}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
+                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Queued Jobs</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="font-headline-lg text-headline-lg text-secondary">{queueWaitingCount}</span>
+                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Waiting</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+                                        <div className="h-full bg-secondary" style={{ width: queueWaitingCount > 0 ? "100%" : "0%" }}></div>
                                     </div>
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
-            </section>
-
-            {/* Dashboard Lower Stack - Queue, Logs, & App Control */}
-            <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
-                {/* Col 1: Queue and vLLM cache */}
-                <section className="glass-panel p-5 border-nordicBorder bg-nordicCard flex flex-col gap-5">
-                    <h2 className="text-xs font-bold tracking-widest text-nordicMuted uppercase flex items-center gap-2">
-                        <Icons.Database />
-                        Queue & Cache Allocation
-                    </h2>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-nordicBg/40 border border-nordicBorder p-3 rounded text-center">
-                            <span className="block text-[9px] font-bold text-nordicMuted tracking-wider uppercase">Active Tasks</span>
-                            <span className="block text-xl font-mono font-bold text-nordicBlue mt-0.5">{totalRunning || queueActiveCount}</span>
-                        </div>
-                        <div className="bg-nordicBg/40 border border-nordicBorder p-3 rounded text-center">
-                            <span className="block text-[9px] font-bold text-nordicMuted tracking-wider uppercase">Queued Tasks</span>
-                            <span className="block text-xl font-mono font-bold text-nordicGold mt-0.5">{totalWaiting || queueWaitingCount}</span>
-                        </div>
-                    </div>
-
-                    {/* KV Cache bars */}
-                    <div className="flex flex-col gap-3">
-                        <span className="text-[9px] font-bold text-nordicMuted tracking-wider uppercase">vLLM KV Cache Allocation</span>
-                        {Object.keys(metrics.vllm).map(modelName => {
-                            const v = metrics.vllm[modelName];
-                            const width = v.online ? `${v.kv_cache_usage}%` : "0%";
-                            return (
-                                <div key={modelName} className="bg-nordicBg/40 border border-nordicBorder p-3 rounded flex flex-col gap-2">
-                                    <div className="flex justify-between items-center text-[10px] font-bold font-mono">
-                                        <span className="text-nordicText">{modelName}</span>
-                                        <span className={v.online ? "text-nordicBlue" : "text-nordicRed"}>{v.online ? `${v.kv_cache_usage.toFixed(1)}%` : "OFFLINE"}</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-zinc-800 rounded-sm overflow-hidden border border-zinc-700/30">
-                                        <div className="h-full bg-nordicBlue rounded-sm transition-[width] duration-700 ease-out" style={{ width }} />
-                                    </div>
+                            
+                            {/* View Selector Row */}
+                            <div className="flex justify-between items-center bg-surface-container-low p-3 rounded-xl border border-white/5 shadow-[2px_2px_6px_var(--shadow-dark)]">
+                                <span className="font-label-mono text-label-mono font-bold tracking-wider text-on-surface">SYSTEM CLUSTER DIAGNOSTICS</span>
+                                <div className="pressed-neumorphic p-[2px] rounded-lg flex gap-1">
+                                    <button onClick={() => setViewMode("table")}
+                                            className={`px-3 py-1.5 text-[10px] font-bold tracking-wider font-label-mono rounded transition-all active:scale-95 ${
+                                                viewMode === "table"
+                                                ? 'bg-surface shadow-[2px_2px_4px_var(--shadow-dark),-2px_-2px_4px_var(--shadow-light)] text-tertiary'
+                                                : 'text-on-surface-variant hover:text-on-surface'
+                                            }`}>
+                                        TABLE VIEW
+                                    </button>
+                                    <button onClick={() => setViewMode("grid")}
+                                            className={`px-3 py-1.5 text-[10px] font-bold tracking-wider font-label-mono rounded transition-all active:scale-95 ${
+                                                viewMode === "grid"
+                                                ? 'bg-surface shadow-[2px_2px_4px_var(--shadow-dark),-2px_-2px_4px_var(--shadow-light)] text-tertiary'
+                                                : 'text-on-surface-variant hover:text-on-surface'
+                                            }`}>
+                                        GRID VIEW
+                                    </button>
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Active Jobs Queue */}
-                    <div className="flex flex-col gap-2">
-                        <span className="text-[9px] font-bold text-nordicMuted tracking-wider uppercase">Active Pipeline Tasks</span>
-                        <div className="max-h-[140px] overflow-y-auto pr-1 flex flex-col gap-2 custom-scrollbar">
-                            {metrics.queue.active && metrics.queue.active.length > 0 ? (
-                                metrics.queue.active.map(job => (
-                                    <div key={job.task_id || job.id} className="bg-nordicBg/30 border border-nordicBorder px-3 py-2 rounded flex justify-between items-center text-[10px]">
-                                        <div className="flex flex-col gap-0.5">
-                                            <span className="font-bold text-nordicText">{job.model || "Hermes-70B"}</span>
-                                            <span className="font-mono text-zinc-500">ID: {(job.task_id || job.id).substring(0, 8)}...</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-mono font-bold text-nordicBlue uppercase">[{job.status}]</span>
-                                            <button onClick={() => cancelQueueTask(job.task_id || job.id)} 
-                                                    className="px-2 py-1 bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 text-nordicRed text-[9px] font-bold rounded uppercase active:scale-95 transition-all">
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center text-[10px] text-zinc-600 py-6">No jobs currently executing in the queue.</div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Col 2: AI Loop Diagnostics */}
-                <section className="glass-panel p-5 border-nordicBorder bg-nordicCard flex flex-col gap-5 justify-between">
-                    <div className="flex flex-col gap-4">
-                        <h2 className="text-xs font-bold tracking-widest text-nordicMuted uppercase flex items-center gap-2">
-                            <Icons.Cpu />
-                            AI Repetition Diagnostics
-                        </h2>
-                        
-                        <div className="flex flex-col items-center py-4 bg-nordicBg/20 border border-nordicBorder rounded">
-                            {Object.keys(metrics.nodes).map(nid => {
-                                const n = metrics.nodes[nid];
-                                if (n.online && n.chat_loop_diagnostics) {
-                                    const score = Math.round(n.chat_loop_diagnostics.repetition_score * 100);
-                                    return (
-                                        <div key={nid} className="flex flex-col items-center gap-3">
-                                            <div className="w-24 h-24 relative">
-                                                <svg viewBox="0 0 36 36" className="circular-chart w-full h-full">
-                                                    <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                    <path className="circle-fill" 
-                                                          strokeDasharray={`${score}, 100`} 
-                                                          stroke={getGoodBadColor(score)} 
-                                                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                                </svg>
-                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                                                    <span className="block text-lg font-bold font-mono text-nordicText">{score}%</span>
-                                                    <span className="block text-[7px] text-nordicMuted font-bold uppercase tracking-wide">Entropy</span>
+                            </div>
+                            
+                            {/* Node display block */}
+                            {viewMode === "grid" ? (
+                                /* GRID VIEW (Stepped vertical bars layout) */
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {Object.keys(metrics.nodes).map(nodeId => {
+                                        const node = metrics.nodes[nodeId];
+                                        const cleanId = nodeId.replace("spark-", "");
+                                        
+                                        if (!node.online) {
+                                            return (
+                                                <div key={nodeId} className="extruded-raised flex flex-col justify-center items-center h-[240px] p-6 text-center bg-surface opacity-55">
+                                                    <span className="material-symbols-outlined text-red-400 text-3xl mb-2">error</span>
+                                                    <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">{cleanId}</h3>
+                                                    <p className="text-[10px] font-mono text-outline-variant mt-1">NODE OFFLINE</p>
+                                                </div>
+                                            );
+                                        }
+                                        
+                                        const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
+                                        const swapTotal = node.ram.swap_total || 0;
+                                        const swapUsed = node.ram.swap_used || 0;
+                                        const swapPerc = swapTotal ? Math.round((swapUsed / swapTotal) * 100) : 0;
+                                        
+                                        const iowaitVal = node.iowait || 0.0;
+                                        const readRate = node.disk.read_rate || 0.0;
+                                        const writeRate = node.disk.write_rate || 0.0;
+                                        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
+                                        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
+                                        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
+                                        
+                                        const isSwapping = swapIn > 0.5 || swapOut > 0.5;
+                                        const isThrashing = iowaitVal > 8.0;
+                                        const isMemorySaturated = psiSome > 10.0;
+                                        
+                                        const vramPerc = node.gpu && node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
+                                        
+                                        return (
+                                            <div key={nodeId} className="extruded-raised p-5 flex flex-col justify-between bg-surface relative">
+                                                {/* Card Header */}
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="text-sm font-bold text-on-surface tracking-wider flex items-center gap-1.5 uppercase font-label-mono">
+                                                            {cleanId}
+                                                            {isMemorySaturated && <span className="text-[7px] bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-0.5 font-mono font-bold">PSI</span>}
+                                                            {isSwapping && <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 font-mono font-bold">SWAP</span>}
+                                                            {isThrashing && <span className="text-[7px] bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-0.5 font-mono font-bold">THRASH</span>}
+                                                            {node.gpu && node.gpu.online && node.gpu.throttle_reason && node.gpu.throttle_reason !== "None" && (
+                                                                <span className="text-[7px] bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-0.5 font-mono font-bold pulsing-badge">
+                                                                    THROTTLE: {node.gpu.throttle_reason.toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                        </h3>
+                                                    </div>
+                                                    <span className="text-[8px] bg-tertiary/10 border border-tertiary/20 text-tertiary px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider font-label-mono">Online</span>
+                                                </div>
+                                                
+                                                {/* Stepped Gauges Container (System + GPU side-by-side) */}
+                                                <div className="flex gap-2 justify-between items-stretch mb-4 bg-surface-container-low p-2 rounded-lg border border-white/5">
+                                                    {/* System Stats */}
+                                                    {CircularGauge({ value: node.cpu, label: 'CPU', colorFn: getGoodBadColor, isLightTheme })}
+                                                    {CircularGauge({ value: ramPerc, label: 'RAM', colorFn: getGoodBadColor, isLightTheme })}
+                                                    {swapTotal > 0 && CircularGauge({ value: swapPerc, label: 'SWAP', colorFn: getGoodBadColor, isLightTheme })}
+                                                    {CircularGauge({ value: node.disk.perc, label: 'DISK', colorFn: getGoodBadColor, isLightTheme })}
+                                                    
+                                                    {/* Divider if GPU is online */}
+                                                    {node.gpu && node.gpu.online && (
+                                                        <div className="w-[1px] bg-outline-variant/35 self-stretch mx-1.5 my-1" />
+                                                    )}
+                                                    
+                                                    {/* GPU Stats */}
+                                                    {node.gpu && node.gpu.online && (
+                                                        <React.Fragment>
+                                                            {CircularGauge({ value: node.gpu.gpu_util, label: 'GPU', colorFn: getGoodBadColor, isLightTheme })}
+                                                            {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor, isLightTheme })}
+                                                            {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: 'PWR', suffix: "W", colorFn: getStrongWeakColor, isLightTheme })}
+                                                            {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor, isLightTheme })}
+                                                        </React.Fragment>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Micro Details */}
+                                                <div className="border-t border-outline-variant/25 pt-3 text-[10px] font-mono text-on-surface-variant flex flex-col gap-2">
+                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-surface-container-lowest/50 p-2 rounded border border-white/5">
+                                                        <div>I/O Wait: <span className="text-on-surface font-bold">{iowaitVal}%</span></div>
+                                                        <div>Mem PSI: <span className="text-on-surface font-bold">{psiSome}%</span></div>
+                                                        <div>RAM: <span className="text-on-surface font-bold">{(node.ram.used/1024).toFixed(0)}/{(node.ram.total/1024).toFixed(0)} GB</span></div>
+                                                        {swapTotal > 0 && <div>Swap: <span className="text-on-surface font-bold">{(swapUsed/1024).toFixed(0)}/{(swapTotal/1024).toFixed(0)} GB</span></div>}
+                                                    </div>
+                                                    <div className="flex justify-between px-1 text-[9px] text-on-surface-variant opacity-80">
+                                                        <span>Read: <span className="text-on-surface font-bold">{readRate >= 1024 ? `${(readRate/1024).toFixed(1)} MB/s` : `${readRate.toFixed(0)} KB/s`}</span></span>
+                                                        <span>Write: <span className="text-on-surface font-bold">{writeRate >= 1024 ? `${(writeRate/1024).toFixed(1)} MB/s` : `${writeRate.toFixed(0)} KB/s`}</span></span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <span className="text-[9px] font-bold tracking-wider text-nordicMuted uppercase mt-1">
-                                                4-gram Repetition Metric
-                                            </span>
-                                        </div>
-                                    );
-                                }
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Code Stream Screen */}
-                    <div className="flex flex-col gap-2.5">
-                        <span className="text-[9px] font-bold text-nordicMuted tracking-wider uppercase flex items-center gap-1">
-                            <Icons.Terminal />
-                            Live Inference Stream
-                        </span>
-                        {Object.keys(metrics.nodes).map(nid => {
-                            const n = metrics.nodes[nid];
-                            if (n.online && n.chat_loop_diagnostics) {
-                                return (
-                                    <div key={nid} className="terminal-screen p-3 rounded border border-nordicBorder font-mono text-[10px] flex flex-col gap-2 text-zinc-300">
-                                        <div className="flex flex-col gap-1 max-h-[85px] overflow-y-auto custom-scrollbar">
-                                            <span className="text-nordicBlue font-bold">USER:</span>
-                                            <p className="text-zinc-300 leading-normal bg-black/40 p-2 rounded border border-zinc-800/40 select-all">{n.chat_loop_diagnostics.latest_prompt || "Idle..."}</p>
-                                        </div>
-                                        <div className="flex flex-col gap-1 max-h-[105px] overflow-y-auto custom-scrollbar border-t border-zinc-800/60 pt-2">
-                                            <span className="text-nordicGold font-bold">GENERATION:</span>
-                                            <p className="text-zinc-300 leading-normal bg-black/40 p-2 rounded border border-zinc-800/40 select-all">{n.chat_loop_diagnostics.latest_response || "Waiting..."}</p>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                /* TABLE VIEW (Neumorphic High Density Table) */
+                                <div className="extruded-raised bg-surface rounded-xl overflow-hidden border border-white/5">
+                                    <div className="overflow-x-auto">
+                                        <table class="w-full border-collapse">
+                                            <thead>
+                                                <tr className="bg-surface-container-low/50 font-label-mono text-label-mono text-on-surface-variant text-left">
+                                                    <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Node Identity</th>
+                                                    <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">System Load</th>
+                                                    <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">GPU Status</th>
+                                                    <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">vLLM Diagnostics</th>
+                                                    <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Telemetry</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="font-label-mono text-label-mono divide-y divide-outline-variant/10">
+                                                {Object.keys(metrics.nodes).map(nodeId => {
+                                                    const node = metrics.nodes[nodeId];
+                                                    const cleanId = nodeId.replace("spark-", "");
+                                                    
+                                                    if (!node.online) {
+                                                        return (
+                                                            <tr key={nodeId} className="opacity-55 bg-surface-container-lowest/10">
+                                                                <td className="p-4 font-bold text-red-400 flex items-center gap-2">
+                                                                    <span className="material-symbols-outlined text-[16px]">error</span>
+                                                                    {cleanId}
+                                                                </td>
+                                                                <td className="p-4 text-outline-variant italic" colSpan="4">OFFLINE</td>
+                                                            </tr>
+                                                        );
+                                                    }
+                                                    
+                                                    const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
+                                                    const isGpuOnline = node.gpu && node.gpu.online;
+                                                    const vllmOnline = Object.values(metrics.vllm).some(v => v.node_id === nodeId && v.online);
+                                                    
+                                                    return (
+                                                        <tr key={nodeId} className="hover:bg-surface-container-low transition-colors group">
+                                                            <td className="p-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-lg bg-surface-container-high recessed-inset flex items-center justify-center">
+                                                                        <span className="material-symbols-outlined text-tertiary text-sm">dns</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-on-surface font-semibold uppercase">{cleanId}</div>
+                                                                        <div className="text-[9px] text-on-surface-variant font-mono opacity-60">ID: {nodeId}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex gap-4">
+                                                                    {HorizontalSteppedGauge({ value: node.cpu, label: "CPU", colorFn: getGoodBadColor, isLightTheme })}
+                                                                    {HorizontalSteppedGauge({ value: ramPerc, label: "RAM", colorFn: getGoodBadColor, isLightTheme })}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                {isGpuOnline ? (
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="px-2 py-1 bg-surface-container-high rounded text-[9px] border border-tertiary/10 font-bold uppercase">
+                                                                            {node.gpu.gpu_name.replace("NVIDIA", "").replace("Accelerator", "").trim()}
+                                                                        </span>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}°C / {node.gpu.gpu_util}% Load</span>
+                                                                            {HorizontalSteppedGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-[9px] text-on-surface-variant opacity-50 uppercase">No GPU</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`material-symbols-outlined text-sm ${vllmOnline ? 'text-tertiary animate-pulse' : 'text-outline-variant'}`}>
+                                                                        {vllmOnline ? "check_circle" : "cancel"}
+                                                                    </span>
+                                                                    <span className="text-on-surface font-bold uppercase">{vllmOnline ? "ACTIVE" : "INACTIVE"}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 relative">
+                                                                <div className="w-full max-w-[120px] spark-line opacity-40 group-hover:opacity-100 transition-opacity"></div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="p-4 bg-surface-container-lowest flex justify-between items-center text-[9px] border-t border-white/5">
+                                        <span className="text-on-surface-variant font-mono">LISTING {onlineNodes} OF {totalNodes} PEER NODES</span>
+                                        <div className="flex gap-2">
+                                            <button className="px-3 py-1 recessed-inset rounded text-[9px] text-on-surface-variant hover:text-tertiary font-bold transition-all uppercase">Prev</button>
+                                            <button className="px-3 py-1 extruded-raised rounded text-[9px] text-tertiary font-bold transition-all uppercase">Next</button>
                                         </div>
                                     </div>
-                                );
-                            }
-                        })}
-                    </div>
-                </section>
-
-                {/* Col 3: App Controls & Services */}
-                <section className="glass-panel p-5 border-nordicBorder bg-nordicCard flex flex-col gap-4">
-                    <h2 className="text-xs font-bold tracking-widest text-nordicMuted uppercase flex items-center gap-2">
-                        <Icons.Terminal />
-                        Microservice Controls
-                    </h2>
-                    
-                    <div className="flex flex-col gap-4 max-h-[440px] overflow-y-auto pr-1 custom-scrollbar">
-                        {Object.keys(metrics.nodes).map(nodeId => {
-                            const node = metrics.nodes[nodeId];
-                            if (!node.online) return null;
-                            const cleanId = nodeId.replace("spark-", "");
+                                </div>
+                            )}
                             
-                            return (
-                                <div key={nodeId} className="flex flex-col gap-3">
-                                    <div className="text-[9px] font-bold text-nordicMuted uppercase tracking-widest border-b border-nordicBorder pb-1">
-                                        Node {cleanId} Workloads
+                            {/* Bento Section */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+                                <div className="lg:col-span-2 extruded-raised bg-surface rounded-xl p-container-padding h-64 relative overflow-hidden flex flex-col justify-between">
+                                    <div className="flex justify-between items-center mb-4 z-10">
+                                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Global Latency Distribution</h3>
+                                        <span className="px-2 py-0.5 bg-tertiary/10 text-tertiary text-[8px] rounded border border-tertiary/20 font-bold uppercase animate-pulse">LIVE</span>
                                     </div>
                                     
-                                    {node.dockers && node.dockers.length > 0 ? (
-                                        <div className="flex flex-col gap-2.5">
-                                            {node.dockers.map(d => {
-                                                const ramUsed = d.mem_usage.includes('/') ? d.mem_usage.split('/')[0].trim() : d.mem_usage;
-                                                const totalRam = d.mem_usage.includes('/') ? d.mem_usage.split('/')[1].trim() : '';
-                                                const ramLabel = totalRam ? `${ramUsed} / ${totalRam}` : ramUsed;
-                                                const isRunning = d.state === "running";
+                                    <div className="flex items-end justify-between gap-2 h-32 px-2 pb-2 mt-auto">
+                                        <div className="w-full bg-tertiary/20 rounded-t h-[40%] hover:bg-tertiary/45 transition-colors"></div>
+                                        <div className="w-full bg-tertiary/30 rounded-t h-[55%] hover:bg-tertiary/45 transition-colors"></div>
+                                        <div className="w-full bg-tertiary/40 rounded-t h-[80%] hover:bg-tertiary/45 transition-colors"></div>
+                                        <div className="w-full bg-tertiary/65 rounded-t h-[95%] hover:bg-tertiary/45 transition-colors"></div>
+                                        <div className="w-full bg-secondary/65 rounded-t h-[60%] hover:bg-secondary/45 transition-colors"></div>
+                                        <div className="w-full bg-tertiary/40 rounded-t h-[45%] hover:bg-tertiary/45 transition-colors"></div>
+                                        <div className="w-full bg-tertiary/20 rounded-t h-[20%] hover:bg-tertiary/45 transition-colors"></div>
+                                    </div>
+                                    
+                                    <div className="flex justify-between text-[9px] font-mono text-on-surface-variant opacity-60 mt-1">
+                                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col justify-between min-h-[256px]">
+                                    <div>
+                                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-2">Cluster Redundancy</h3>
+                                        <p className="font-label-mono text-label-mono text-on-surface-variant opacity-70">Redundancy factor remains at 3.1x. All primary streams are operational and balanced.</p>
+                                    </div>
+                                    <div className="flex justify-center py-2">
+                                        <div className="relative w-24 h-24 flex items-center justify-center">
+                                            <svg className="w-full h-full transform -rotate-90">
+                                                <circle className="text-surface-container-highest" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeWidth="8"></circle>
+                                                <circle className="text-tertiary glow-teal" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeDasharray="251.2" strokeDashoffset="25.12" strokeWidth="8"></circle>
+                                            </svg>
+                                            <span className="absolute font-headline-sm text-headline-sm text-tertiary font-bold">90%</span>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setActiveTab("psi")}
+                                            className="w-full py-2.5 recessed-inset rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary hover:scale-[1.01] transition-all">
+                                        View Detailed Diagnostics
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === "gpu" && (
+                        <div className="space-y-6">
+                            <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">memory</span>
+                                Cluster GPU Telemetry
+                            </h2>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                {Object.keys(metrics.nodes).map(nodeId => {
+                                    const node = metrics.nodes[nodeId];
+                                    if (!node.online || !node.gpu || !node.gpu.online) return null;
+                                    const cleanId = nodeId.replace("spark-", "");
+                                    const vramPerc = Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100);
+                                    
+                                    return (
+                                        <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
+                                            <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                                <span className="font-bold text-on-surface uppercase font-label-mono">Node {cleanId}</span>
+                                                <span className="text-[9px] bg-tertiary/10 border border-tertiary/20 text-tertiary px-2 py-0.5 rounded font-bold">{node.gpu.gpu_name.replace("NVIDIA", "").trim()}</span>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {CircularGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
+                                                {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: "TEMP", suffix: "°C", colorFn: getGoodBadColor, isLightTheme })}
+                                                {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: "POWER", suffix: "W", colorFn: getStrongWeakColor, isLightTheme })}
+                                                {CircularGauge({ value: vramPerc, label: "VRAM", colorFn: getStrongWeakColor, isLightTheme })}
+                                            </div>
+                                            
+                                            <div className="bg-surface-container-lowest/50 p-3 rounded-lg border border-white/5 text-[10px] font-mono text-on-surface-variant space-y-1.5">
+                                                <div className="flex justify-between"><span>VRAM Allocation:</span><span className="font-bold text-on-surface">{(node.gpu.mem_used).toFixed(0)} / {(node.gpu.mem_total).toFixed(0)} MB</span></div>
+                                                <div className="flex justify-between"><span>Power Limit:</span><span className="font-bold text-on-surface">{node.gpu.power_limit} W</span></div>
+                                                <div className="flex justify-between"><span>Throttle Reason:</span><span className={`font-bold ${node.gpu.throttle_reason !== "None" ? "text-red-400 animate-pulse font-black" : "text-tertiary"}`}>{node.gpu.throttle_reason}</span></div>
+                                            </div>
+                                            
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setLogModal({ node_id: nodeId, type: "service", name: "nvml", logs: `NVML status on ${cleanId} is normal.\nGPU Model: ${node.gpu.gpu_name}\nThrottle Reason: ${node.gpu.throttle_reason}\nDriver Version: NV-535.129.03` })}
+                                                        className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary transition-all border border-white/5 active:scale-95 text-[10px] uppercase font-bold text-center">
+                                                    Diagnostics
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === "vllm" && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+                            <div className="lg:col-span-2 space-y-6">
+                                <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">lan</span>
+                                    vLLM Models & Generation Status
+                                </h2>
+                                
+                                <div className="space-y-4">
+                                    {Object.keys(metrics.vllm).map(modelName => {
+                                        const v = metrics.vllm[modelName];
+                                        const width = v.online ? `${v.kv_cache_usage}%` : "0%";
+                                        return (
+                                            <div key={modelName} className="extruded-raised bg-surface p-5 rounded-xl space-y-3">
+                                                <div className="flex justify-between items-center text-[11px] font-bold font-mono border-b border-white/5 pb-2">
+                                                    <span className="text-on-surface uppercase tracking-wider">{modelName}</span>
+                                                    <span className={`font-black uppercase ${v.online ? "text-tertiary glow-teal" : "text-red-400"}`}>
+                                                        {v.online ? "ONLINE" : "OFFLINE"}
+                                                    </span>
+                                                </div>
                                                 
-                                                return (
-                                                    <div key={d.name} className="bg-nordicBg/40 border border-nordicBorder p-3 rounded flex flex-col gap-2">
-                                                        <div className="flex justify-between items-center text-[10px]">
-                                                            <div className="flex flex-col gap-0.5">
-                                                                <span className="font-bold text-nordicText">{d.name}</span>
-                                                                <span className="text-[9px] text-zinc-500 font-mono truncate max-w-[130px]" title={d.image}>{d.image.split(':')[0]}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? "bg-nordicGreen" : "bg-nordicRed"}`}></span>
-                                                                <span className="font-mono text-zinc-500 leading-none text-[9px]">{d.status}</span>
-                                                            </div>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-[10px] text-on-surface-variant font-mono">
+                                                        <span>KV Cache Allocation</span>
+                                                        <span className="font-bold text-on-surface">{v.online ? `${v.kv_cache_usage.toFixed(1)}%` : "0%"}</span>
+                                                    </div>
+                                                    <div className="h-2 recessed-inset bg-surface-container rounded-full overflow-hidden w-full">
+                                                        <div className="h-full bg-tertiary rounded-full transition-[width] duration-700 ease-out" style={{ width }} />
+                                                    </div>
+                                                </div>
+                                                
+                                                {v.online && (
+                                                    <div className="grid grid-cols-2 gap-4 pt-2 text-[10px] font-mono text-on-surface-variant">
+                                                        <div className="bg-surface-container-low p-2 rounded border border-white/5">
+                                                            <span>Throughput rate:</span>
+                                                            <span className="block text-sm text-on-surface font-bold mt-1">1.2K tok/s</span>
                                                         </div>
-                                                        
-                                                        {isRunning && (
-                                                            <div className="bg-nordicBg/20 p-2 rounded border border-nordicBorder text-[9px] font-mono text-nordicMuted flex justify-between items-center">
-                                                                <span>CPU: <span className="text-nordicText font-bold">{d.cpu_perc}</span></span>
-                                                                <span>RAM: <span className="text-nordicText font-bold">{ramLabel}</span></span>
-                                                            </div>
-                                                        )}
-                                                        
-                                                        <div className="flex gap-2 border-t border-nordicBorder pt-2 justify-between">
-                                                            <button onClick={() => setLogModal({ node_id: nodeId, type: "docker", name: d.name, logs: "Loading logs..." })} 
-                                                                    className="flex-1 py-1 text-[9px] font-bold bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-nordicText rounded active:scale-95 transition-all uppercase">
-                                                                Logs
-                                                            </button>
-                                                            <button onClick={() => sendControlAction('container', nodeId, d.name, 'restart')} 
-                                                                    className="flex-1 py-1 text-[9px] font-bold bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-nordicGold rounded active:scale-95 transition-all uppercase">
-                                                                Restart
-                                                            </button>
-                                                            {isRunning ? (
-                                                                <button onClick={() => sendControlAction('container', nodeId, d.name, 'stop')} 
-                                                                        className="flex-1 py-1 text-[9px] font-bold bg-red-950/15 hover:bg-red-950/30 border border-nordicRed/20 text-nordicRed rounded active:scale-95 transition-all uppercase">
-                                                                    Kill
-                                                                </button>
-                                                            ) : (
-                                                                <button onClick={() => sendControlAction('container', nodeId, d.name, 'start')} 
-                                                                        className="flex-1 py-1 text-[9px] font-bold bg-green-950/15 hover:bg-green-950/30 border border-nordicGreen/20 text-nordicGreen rounded active:scale-95 transition-all uppercase">
-                                                                    Start
-                                                                </button>
-                                                            )}
+                                                        <div className="bg-surface-container-low p-2 rounded border border-white/5">
+                                                            <span>Active Requests:</span>
+                                                            <span className="block text-sm text-on-surface font-bold mt-1">4 parallel</span>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] text-zinc-600 italic">No Docker workloads active.</div>
-                                    )}
+                                                )}
+                                                
+                                                <div className="flex gap-2 pt-2">
+                                                    <button onClick={() => setLogModal({ node_id: v.node_id, type: "service", name: "vllm", logs: "Fetching active vLLM telemetry logs..." })}
+                                                            className="flex-1 py-1.5 bg-surface-container-high hover:bg-surface-container-highest border border-white/5 text-on-surface-variant text-[10px] font-bold rounded active:scale-95 transition-all uppercase">
+                                                        Logs
+                                                    </button>
+                                                    <button onClick={() => sendControlAction('service', v.node_id, 'vllm', 'restart')}
+                                                            className="flex-1 py-1.5 bg-surface-container-high hover:bg-surface-container-highest border border-white/5 text-secondary text-[10px] font-bold rounded active:scale-95 transition-all uppercase">
+                                                        Restart
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">terminal</span>
+                                    Live Inference Stream
+                                </h2>
+                                
+                                <div className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
+                                    {Object.keys(metrics.nodes).map(nid => {
+                                        const n = metrics.nodes[nid];
+                                        if (!n.online || !n.chat_loop_diagnostics) return null;
+                                        return (
+                                            <div key={nid} className="space-y-3">
+                                                <span className="text-[10px] font-bold font-mono text-tertiary border-b border-white/5 pb-1 block uppercase">Node {nid.replace("spark-", "")} Generation</span>
+                                                <div className="recessed-inset bg-surface-container-lowest/80 p-3 rounded-lg font-mono text-[10px] text-zinc-300 leading-normal space-y-2 select-all max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                    <div className="text-tertiary font-bold">USER:</div>
+                                                    <p className="bg-black/30 p-2 rounded border border-white/5 opacity-90">{n.chat_loop_diagnostics.latest_prompt || "Idle..."}</p>
+                                                    <div className="text-secondary font-bold">GENERATION:</div>
+                                                    <p className="bg-black/30 p-2 rounded border border-white/5 opacity-90">{n.chat_loop_diagnostics.latest_response || "Waiting..."}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === "queue" && (
+                        <div className="space-y-6">
+                            <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">hourglass_empty</span>
+                                Priority Scheduler Queue
+                            </h2>
+                            
+                            <div className="extruded-raised bg-surface rounded-xl overflow-hidden border border-white/5">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-surface-container-low/50 font-label-mono text-label-mono text-on-surface-variant text-left">
+                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Model Instance</th>
+                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Job Task ID</th>
+                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Active Status</th>
+                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px] text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="font-label-mono text-label-mono divide-y divide-outline-variant/10">
+                                            {metrics.queue.active && metrics.queue.active.length > 0 ? (
+                                                metrics.queue.active.map(job => (
+                                                    <tr key={job.task_id || job.id} className="hover:bg-surface-container-low transition-colors">
+                                                        <td className="p-4 font-bold text-on-surface">{job.model || "Hermes-3-70B"}</td>
+                                                        <td className="p-4 font-mono text-outline">{job.task_id || job.id}</td>
+                                                        <td className="p-4">
+                                                            <span className="px-2 py-0.5 bg-tertiary/10 border border-tertiary/20 text-tertiary rounded text-[9px] font-bold uppercase">{job.status}</span>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <button onClick={() => cancelQueueTask(job.task_id || job.id)}
+                                                                    className="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-red-500/20 text-red-400 text-[9px] font-bold rounded uppercase active:scale-95 transition-all shadow-[1px_1px_3px_var(--shadow-dark)]">
+                                                                Cancel
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td className="p-8 text-center text-on-surface-variant font-mono italic" colSpan="4">
+                                                        No active pipeline tasks in queue.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === "containers" && (
+                        <div className="space-y-6">
+                            <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">dns</span>
+                                Cluster Workload Containers
+                            </h2>
+                            
+                            <div className="space-y-8">
+                                {Object.keys(metrics.nodes).map(nodeId => {
+                                    const node = metrics.nodes[nodeId];
+                                    if (!node.online || !node.dockers || node.dockers.length === 0) return null;
+                                    const cleanId = nodeId.replace("spark-", "");
+                                    
+                                    return (
+                                        <div key={nodeId} className="space-y-3 border-l-2 border-tertiary/30 pl-4">
+                                            <h3 className="font-bold text-[11px] text-tertiary tracking-wider font-mono uppercase">Node {cleanId} Container Services</h3>
+                                            
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                                {node.dockers.map(d => {
+                                                    const ramUsed = d.mem_usage.includes('/') ? d.mem_usage.split('/')[0].trim() : d.mem_usage;
+                                                    const totalRam = d.mem_usage.includes('/') ? d.mem_usage.split('/')[1].trim() : '';
+                                                    const ramLabel = totalRam ? `${ramUsed} / ${totalRam}` : ramUsed;
+                                                    const isRunning = d.state === "running";
+                                                    
+                                                    return (
+                                                        <div key={d.name} className="extruded-raised bg-surface p-4 rounded-xl flex flex-col justify-between gap-3">
+                                                            <div className="flex justify-between items-start border-b border-white/5 pb-2">
+                                                                <div>
+                                                                    <div className="font-bold text-on-surface text-[11px]">{d.name}</div>
+                                                                    <div className="text-[9px] text-on-surface-variant font-mono truncate max-w-[130px]" title={d.image}>{d.image.split(':')[0]}</div>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? "bg-emerald-400" : "bg-red-400"}`}></span>
+                                                                    <span className="font-mono text-outline leading-none text-[8px] uppercase">{d.status}</span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {isRunning && (
+                                                                <div className="bg-surface-container-low p-2 rounded border border-white/5 text-[9px] font-mono text-on-surface-variant flex justify-between items-center">
+                                                                    <span>CPU: <span className="text-on-surface font-bold">{d.cpu_perc}</span></span>
+                                                                    <span>RAM: <span className="text-on-surface font-bold">{ramLabel}</span></span>
+                                                                </div>
+                                                            )}
+                                                            
+                                                            <div className="flex gap-2 justify-between">
+                                                                <button onClick={() => setLogModal({ node_id: nodeId, type: "docker", name: d.name, logs: "Loading container logs..." })} 
+                                                                        className="flex-grow py-1 bg-surface-container-high hover:bg-surface-container-highest border border-white/5 text-on-surface-variant text-[9px] font-bold rounded active:scale-95 transition-all uppercase text-center">
+                                                                    Logs
+                                                                </button>
+                                                                <button onClick={() => sendControlAction('container', nodeId, d.name, 'restart')} 
+                                                                        className="flex-grow py-1 bg-surface-container-high hover:bg-surface-container-highest border border-white/5 text-secondary text-[9px] font-bold rounded active:scale-95 transition-all uppercase text-center">
+                                                                    Restart
+                                                                </button>
+                                                                {isRunning ? (
+                                                                    <button onClick={() => sendControlAction('container', nodeId, d.name, 'stop')} 
+                                                                            className="flex-grow py-1 bg-red-950/20 hover:bg-red-950/45 border border-red-500/20 text-red-400 text-[9px] font-bold rounded active:scale-95 transition-all uppercase text-center">
+                                                                        Stop
+                                                                    </button>
+                                                                ) : (
+                                                                    <button onClick={() => sendControlAction('container', nodeId, d.name, 'start')} 
+                                                                            className="flex-grow py-1 bg-emerald-950/20 hover:bg-emerald-950/45 border border-emerald-500/20 text-emerald-400 text-[9px] font-bold rounded active:scale-95 transition-all uppercase text-center">
+                                                                        Start
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === "psi" && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+                            <div className="lg:col-span-2 space-y-6">
+                                <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">speed</span>
+                                    System Pressure & Swap Thrashing Monitors
+                                </h2>
+                                
+                                <div className="space-y-4">
+                                    {Object.keys(metrics.nodes).map(nodeId => {
+                                        const node = metrics.nodes[nodeId];
+                                        if (!node.online) return null;
+                                        const cleanId = nodeId.replace("spark-", "");
+                                        
+                                        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
+                                        const psiFull = (node.psi_memory && node.psi_memory.full_avg10) || 0.0;
+                                        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
+                                        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
+                                        
+                                        return (
+                                            <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
+                                                <span className="font-bold font-mono text-tertiary block border-b border-white/5 pb-2 uppercase">Node {cleanId} Stall telemetry</span>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="bg-surface-container-low p-3 rounded-lg border border-white/5 space-y-1">
+                                                        <span className="text-[9px] uppercase font-bold text-outline">Memory PSI (Some)</span>
+                                                        <div className="flex justify-between items-baseline">
+                                                            <span className="text-lg font-mono font-bold text-on-surface">{psiSome}%</span>
+                                                            <span className="text-[9px] text-on-surface-variant">avg10</span>
+                                                        </div>
+                                                        <div className="h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                                                            <div className="h-full bg-tertiary" style={{ width: `${Math.min(100, psiSome*5)}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="bg-surface-container-low p-3 rounded-lg border border-white/5 space-y-1">
+                                                        <span className="text-[9px] uppercase font-bold text-outline">Memory PSI (Full)</span>
+                                                        <div className="flex justify-between items-baseline">
+                                                            <span className="text-lg font-mono font-bold text-on-surface">{psiFull}%</span>
+                                                            <span className="text-[9px] text-on-surface-variant">avg10</span>
+                                                        </div>
+                                                        <div className="h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                                                            <div className="h-full bg-tertiary" style={{ width: `${Math.min(100, psiFull*10)}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-4 pt-2 text-[10px] font-mono text-on-surface-variant bg-surface-container-lowest/50 p-3 rounded border border-white/5">
+                                                    <div>Swap In Rate: <span className="text-on-surface font-bold">{swapIn.toFixed(1)} pages/s</span></div>
+                                                    <div>Swap Out Rate: <span className="text-on-surface font-bold">{swapOut.toFixed(1)} pages/s</span></div>
+                                                    <div className="col-span-2 border-t border-white/5 pt-2 mt-1 flex justify-between">
+                                                        <span>Status Diagnostics:</span>
+                                                        <span className={psiSome > 10 ? "text-red-400 font-bold uppercase animate-pulse" : "text-tertiary uppercase font-bold"}>
+                                                            {psiSome > 10 ? "PRESSURE WARNING" : "PRESSURE STABLE"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">terminal</span>
+                                    System Kernel Log Outputs
+                                </h2>
+                                
+                                <div className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
+                                    {Object.keys(metrics.nodes).map(nodeId => {
+                                        const node = metrics.nodes[nodeId];
+                                        if (!node.online) return null;
+                                        const cleanId = nodeId.replace("spark-", "");
+                                        
+                                        return (
+                                            <div key={nodeId} className="space-y-2">
+                                                <span className="text-[10px] font-bold font-mono text-outline block uppercase">dmesg outputs on Node {cleanId}</span>
+                                                <button onClick={() => setLogModal({ node_id: nodeId, type: "service", name: "dmesg", logs: "Streaming system logs..." })}
+                                                        className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary transition-all border border-white/5 text-[10px] uppercase font-bold text-center active:scale-95 shadow-[1px_1px_3px_var(--shadow-dark)]">
+                                                    Inspect dmesg Kernel Logs
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                </div>
+                
+                {/* Footer Section */}
+                <footer className="w-full py-4 px-margin-desktop bg-surface-container-lowest flex justify-between items-center border-t border-white/5 z-40">
+                    <span className="font-label-mono text-label-mono text-on-surface-variant">© 2024 Multi-Spark OS. Telemetry Engine Active.</span>
+                    <div className="flex gap-6">
+                        <a className="font-label-mono text-label-mono text-on-surface-variant hover:text-secondary transition-colors cursor-pointer" href="#">Legal</a>
+                        <a className="font-label-mono text-label-mono text-on-surface-variant hover:text-secondary transition-colors cursor-pointer" href="#">Telemetry Docs</a>
+                        <a className="font-label-mono text-label-mono text-on-surface-variant hover:text-secondary transition-colors cursor-pointer" href="#">Security API</a>
                     </div>
-                </section>
+                </footer>
             </main>
-
-            {/* Log Stream Modal Panel */}
+            
+            {/* Modal Logs Terminal */}
             {logModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6 transition-all duration-300">
-                    <div className="glass-panel w-full max-w-[800px] border-nordicBorder bg-[#0c0c0e] text-zinc-300 shadow-2xl flex flex-col h-[520px] overflow-hidden">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 md:p-6 transition-all duration-300">
+                    <div className="extruded-raised w-full max-w-[800px] bg-[#0c0c0e] text-zinc-300 shadow-2xl flex flex-col h-[520px] overflow-hidden rounded-xl">
                         {/* Modal Header */}
-                        <div className="px-5 py-4 border-b border-nordicBorder flex justify-between items-center bg-[#141416]">
+                        <div className="px-5 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-[#141416]">
                             <div className="flex items-center gap-3">
-                                <span className="w-1.5 h-1.5 bg-nordicBlue rounded-full animate-ping"></span>
-                                <h3 className="text-xs font-bold tracking-widest text-zinc-200 uppercase font-mono">
+                                <span className="w-1.5 h-1.5 bg-tertiary rounded-full animate-ping"></span>
+                                <h3 className="text-[10px] font-bold tracking-widest text-zinc-200 uppercase font-mono">
                                     [LOG STREAM] {logModal.node_id.replace("spark-", "")} // {logModal.name}
                                 </h3>
                             </div>
@@ -712,13 +1119,13 @@ const App = () => {
                                 Close
                             </button>
                         </div>
-                        {/* Terminal Screen Body */}
-                        <div className="flex-1 p-4 overflow-y-auto font-mono text-[10px] text-zinc-300 leading-relaxed bg-[#060608] custom-scrollbar select-all">
+                        {/* Terminal Body */}
+                        <div className="flex-grow p-4 overflow-y-auto font-mono text-[10px] text-zinc-300 leading-relaxed bg-[#060608] custom-scrollbar select-all">
                             {logModal.logs ? (
                                 <pre className="whitespace-pre-wrap">{logModal.logs}</pre>
                             ) : (
                                 <div className="flex items-center justify-center h-full">
-                                    <div className="w-5 h-5 border border-t-zinc-400 border-r-transparent border-b-zinc-400 border-l-transparent rounded-full animate-spin"></div>
+                                    <div className="w-5 h-5 border-2 border-t-tertiary border-r-transparent border-b-tertiary border-l-transparent rounded-full animate-spin"></div>
                                 </div>
                             )}
                         </div>

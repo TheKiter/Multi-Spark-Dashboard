@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nordic Spark Cluster Telemetry</title>
+    <title>Multi-Spark OS | Telemetry & Control Suite</title>
     
     <!-- React & Babel Standalone CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -11,25 +11,54 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Tailwind CSS Play CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
+        darkMode: "class",
         theme: {
           extend: {
             colors: {
-              nordicBg: '#09090b',
-              nordicCard: '#18181b',
-              nordicBorder: '#27272a',
-              nordicText: '#f4f4f5',
-              nordicMuted: '#a1a1aa',
-              nordicGreen: '#10b981',
-              nordicRed: '#f43f5e',
-              nordicBlue: '#3b82f6',
-              nordicGold: '#f59e0b',
+              primary: "#c6c6c9",
+              "on-primary-container": "#838486",
+              tertiary: "#00dce5", // Neumorphic Teal accent
+              surface: "#101417",
+              "surface-dim": "#101417",
+              "surface-container": "#1c2024",
+              "surface-container-low": "#181c20",
+              "surface-container-high": "#272a2e",
+              "surface-container-highest": "#323539",
+              "surface-container-lowest": "#0b0f12",
+              "on-surface": "#e0e2e8",
+              "on-surface-variant": "#c5c6ca",
+              "on-background": "#e0e2e8",
+              secondary: "#ffb68b", // Neumorphic Peach/Orange accent
+              "secondary-container": "#ff7f1c",
+              "outline-variant": "#44474a",
+              "outline": "#8f9194",
+              error: "#ffb4ab",
+              "error-container": "#93000a",
+              
+              // Light mode counterparts mapped inside custom CSS variables
+              lightBg: "#fff8f6",
+              lightSurface: "#fff8f6",
+              lightContainer: "#ffeae1",
+              lightContainerLow: "#fff1eb",
+              lightContainerHigh: "#fbe3da",
+              lightContainerHighest: "#f5ded4",
+              lightPrimary: "#a14000",
+              lightSecondary: "#aa3621",
+              lightTertiary: "#0060ac"
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              mono: ['Fira Code', 'monospace']
+              sans: ['Hanken Grotesk', 'sans-serif'],
+              mono: ['Geist', 'monospace']
+            },
+            spacing: {
+              "margin-desktop": "32px",
+              "gutter": "16px",
+              "margin-mobile": "16px",
+              "container-padding": "24px",
+              "unit": "4px"
             }
           }
         }
@@ -39,22 +68,19 @@
     <!-- GSAP CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Material Symbols and Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Geist:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts: Inter & Fira Code -->
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-nordicBg text-nordicText min-h-screen overflow-x-hidden antialiased relative">
-    <div class="bg-glow-sphere top-[-100px] left-[-100px]"></div>
-    
+<body class="bg-surface text-on-surface selection:bg-tertiary selection:text-surface antialiased min-h-screen relative overflow-x-hidden">
     <div id="root">
         <!-- Root React mount point -->
-        <div class="flex items-center justify-center min-h-screen bg-nordicBg">
+        <div class="flex items-center justify-center min-h-screen">
             <div class="text-center font-sans">
-                <div class="inline-block w-8 h-8 border border-t-zinc-100 border-r-transparent border-b-zinc-100 border-l-transparent rounded-full animate-spin"></div>
-                <div class="mt-4 text-nordicMuted text-xs tracking-widest font-medium">TELEMETRY COMPILING...</div>
+                <div class="inline-block w-8 h-8 border-2 border-t-tertiary border-r-transparent border-b-tertiary border-l-transparent rounded-full animate-spin"></div>
+                <div class="mt-4 text-on-surface-variant text-[11px] tracking-widest font-mono font-medium uppercase">COMPILE RUNTIME ORCHESTRATION...</div>
             </div>
         </div>
     </div>

@@ -12,3 +12,9 @@ nodes.json
 # IDEs
 .vscode/
 .idea/
+
+.env
+debug_*.json
+*_dashboard.html
+list_screens.py
+get_screens_code.py

@@ -1,20 +1,68 @@
 /* Neumorphic Theme Variables */
 :root.dark {
     --bg-color: #101417;
+    --font-sans: 'Hanken Grotesk', sans-serif;
+    
+    /* Neumorphic Shadows */
     --shadow-light: rgba(255, 255, 255, 0.05);
     --shadow-dark: rgba(0, 0, 0, 0.5);
     --glow-color-teal: rgba(0, 220, 229, 0.4);
     --glow-color-orange: rgba(255, 127, 28, 0.4);
     --border-color: rgba(255, 255, 255, 0.05);
+
+    /* Tailwind Palette Map */
+    --color-primary: #c6c6c9;
+    --color-on-primary-container: #838486;
+    --color-tertiary: #00dce5;
+    --color-surface: #101417;
+    --color-surface-dim: #101417;
+    --color-surface-container: #1c2024;
+    --color-surface-container-low: #181c20;
+    --color-surface-container-high: #272a2e;
+    --color-surface-container-highest: #323539;
+    --color-surface-container-lowest: #0b0f12;
+    --color-on-surface: #e0e2e8;
+    --color-on-surface-variant: #c5c6ca;
+    --color-on-background: #e0e2e8;
+    --color-secondary: #ffb68b;
+    --color-secondary-container: #ff7f1c;
+    --color-outline-variant: #44474a;
+    --color-outline: #8f9194;
+    --color-error: #ffb4ab;
+    --color-error-container: #93000a;
 }
 
 :root.light {
     --bg-color: #fff8f6;
+    --font-sans: 'Inter', sans-serif;
+    
+    /* Neumorphic Shadows */
     --shadow-light: #ffffff;
     --shadow-dark: rgba(163, 177, 198, 0.6);
     --glow-color-teal: rgba(0, 96, 172, 0.3);
     --glow-color-orange: rgba(170, 54, 33, 0.3);
     --border-color: rgba(0, 0, 0, 0.05);
+
+    /* Tailwind Palette Map */
+    --color-primary: #a14000;
+    --color-on-primary-container: #622400;
+    --color-tertiary: #0060ac;
+    --color-surface: #fff8f6;
+    --color-surface-dim: #ecd5cc;
+    --color-surface-container: #ffeae1;
+    --color-surface-container-low: #fff1eb;
+    --color-surface-container-high: #fbe3da;
+    --color-surface-container-highest: #f5ded4;
+    --color-surface-container-lowest: #ffffff;
+    --color-on-surface: #251913;
+    --color-on-surface-variant: #584238;
+    --color-on-background: #251913;
+    --color-secondary: #aa3621;
+    --color-secondary-container: #fe7358;
+    --color-outline-variant: #dfc0b3;
+    --color-outline: #8c7166;
+    --color-error: #ba1a1a;
+    --color-error-container: #ffdad6;
 }
 
 body {

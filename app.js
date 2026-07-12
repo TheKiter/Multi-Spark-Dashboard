@@ -574,7 +574,7 @@ const App = () => {
                                                     {node.gpu && node.gpu.online && (
                                                         <React.Fragment>
                                                             {CircularGauge({ value: node.gpu.gpu_util, label: 'GPU', colorFn: getGoodBadColor, isLightTheme })}
-                                                            {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor, isLightTheme })}
+                                                            {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "\u00b0C", colorFn: getGoodBadColor, isLightTheme })}
                                                             {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: 'PWR', suffix: "W", colorFn: getStrongWeakColor, isLightTheme })}
                                                             {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor, isLightTheme })}
                                                         </React.Fragment>
@@ -659,7 +659,7 @@ const App = () => {
                                                                             {node.gpu.gpu_name.replace("NVIDIA", "").replace("Accelerator", "").trim()}
                                                                         </span>
                                                                         <div className="flex flex-col gap-1">
-                                                                            <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}°C / {node.gpu.gpu_util}% Load</span>
+                                                                            <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}\u00b0C / {node.gpu.gpu_util}% Load</span>
                                                                             {HorizontalSteppedGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
                                                                         </div>
                                                                     </div>
@@ -763,7 +763,7 @@ const App = () => {
                                             
                                             <div className="grid grid-cols-2 gap-4">
                                                 {CircularGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
-                                                {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: "TEMP", suffix: "°C", colorFn: getGoodBadColor, isLightTheme })}
+                                                {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: "TEMP", suffix: "\u00b0C", colorFn: getGoodBadColor, isLightTheme })}
                                                 {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: "POWER", suffix: "W", colorFn: getStrongWeakColor, isLightTheme })}
                                                 {CircularGauge({ value: vramPerc, label: "VRAM", colorFn: getStrongWeakColor, isLightTheme })}
                                             </div>
@@ -1093,7 +1093,7 @@ const App = () => {
                 
                 {/* Footer Section */}
                 <footer className="w-full py-4 px-margin-desktop bg-surface-container-lowest flex justify-between items-center border-t border-white/5 z-40">
-                    <span className="font-label-mono text-label-mono text-on-surface-variant">© 2024 Multi-Spark OS. Telemetry Engine Active.</span>
+                    <span className="font-label-mono text-label-mono text-on-surface-variant">\u00a9 2024 Multi-Spark OS. Telemetry Engine Active.</span>
                     <div className="flex gap-6">
                         <a className="font-label-mono text-label-mono text-on-surface-variant hover:text-secondary transition-colors cursor-pointer" href="#">Legal</a>
                         <a className="font-label-mono text-label-mono text-on-surface-variant hover:text-secondary transition-colors cursor-pointer" href="#">Telemetry Docs</a>

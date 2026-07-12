@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serenity Spark Cluster Telemetry</title>
+    <title>Nordic Spark Cluster Telemetry</title>
     
     <!-- React & Babel Standalone CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -17,19 +17,19 @@
         theme: {
           extend: {
             colors: {
-              spaBackground: '#FAF9F6', // Calming warm alabaster
-              spaCard: 'rgba(255, 255, 255, 0.65)',
-              spaText: '#2D3436', // Charcoal
-              spaMuted: '#7F8C8D', // Soft grey
-              spaPink: '#E8B4B8', // Rose Gold accent
-              spaGreen: '#87A987', // Calm Sage Green
-              spaGold: '#C5A059', // Champagne Gold
-              spaCoral: '#D27D7D', // Soft Dusty Coral
+              nordicBg: '#09090b',
+              nordicCard: '#18181b',
+              nordicBorder: '#27272a',
+              nordicText: '#f4f4f5',
+              nordicMuted: '#a1a1aa',
+              nordicGreen: '#10b981',
+              nordicRed: '#f43f5e',
+              nordicBlue: '#3b82f6',
+              nordicGold: '#f59e0b',
             },
             fontFamily: {
-              sans: ['Montserrat', 'sans-serif'],
-              serif: ['Cormorant Garamond', 'serif'],
-              mono: ['DM Mono', 'monospace']
+              sans: ['Inter', 'sans-serif'],
+              mono: ['Fira Code', 'monospace']
             }
           }
         }
@@ -38,26 +38,23 @@
     
     <!-- GSAP CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts: Cormorant Garamond, Montserrat & DM Mono -->
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-spaBackground text-spaText min-h-screen overflow-x-hidden antialiased relative">
-    <!-- Glowing background elements for spatial depth -->
-    <div class="bg-glow-sphere top-[-200px] left-[-200px]"></div>
-    <div class="bg-glow-sphere-2 bottom-[-100px] right-[-100px]"></div>
+<body class="bg-nordicBg text-nordicText min-h-screen overflow-x-hidden antialiased relative">
+    <div class="bg-glow-sphere top-[-100px] left-[-100px]"></div>
     
     <div id="root">
         <!-- Root React mount point -->
-        <div class="flex items-center justify-center min-h-screen">
-            <div class="text-center">
-                <div class="inline-block w-10 h-10 border-2 border-t-spaPink border-r-transparent border-b-spaPink border-l-transparent rounded-full animate-spin"></div>
-                <div class="mt-4 text-spaGold font-serif italic text-lg tracking-widest">SERENITY TELEMETRY CONNECTING...</div>
+        <div class="flex items-center justify-center min-h-screen bg-nordicBg">
+            <div class="text-center font-sans">
+                <div class="inline-block w-8 h-8 border border-t-zinc-100 border-r-transparent border-b-zinc-100 border-l-transparent rounded-full animate-spin"></div>
+                <div class="mt-4 text-nordicMuted text-xs tracking-widest font-medium">TELEMETRY COMPILING...</div>
             </div>
         </div>
     </div>

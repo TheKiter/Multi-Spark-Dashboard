@@ -1,86 +1,74 @@
-/* style.css - Serenity Spa UI theme */
+/* style.css - Nordic Minimalist UI theme */
 
 :root {
-    --glass-bg: rgba(255, 255, 255, 0.68);
-    --glass-border: rgba(232, 180, 184, 0.22);
-    --glass-glow: 0 16px 40px rgba(184, 164, 164, 0.08), 0 2px 10px rgba(0, 0, 0, 0.01);
+    --nordic-bg: #09090b;
+    --nordic-card: #18181b;
+    --nordic-border: #27272a;
+    --nordic-text: #f4f4f5;
+    --nordic-muted: #a1a1aa;
     
-    --glow-orange: #C5A059; /* Spa gold */
-    --glow-violet: #E8B4B8; /* Spa pink */
-    --healthy: #87A987; /* Sage green */
-    --danger: #D27D7D; /* Soft coral */
+    --healthy: #10b981; /* Emerald green */
+    --danger: #f43f5e; /* Rose red */
 }
 
 body {
-    background: radial-gradient(circle at 50% 50%, #FAF9F6 0%, #EFEFE9 100%);
-    font-family: 'Montserrat', sans-serif;
-    color: #2D3436;
+    background-color: var(--nordic-bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--nordic-text);
 }
 
-/* Background glowing soft pastel spheres */
+/* Faint ambient glow just for spatial depth without clutter */
 .bg-glow-sphere {
-    position: absolute;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(232, 180, 184, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
-    filter: blur(80px);
-    z-index: -10;
-    pointer-events: none;
-}
-.bg-glow-sphere-2 {
     position: absolute;
     width: 500px;
     height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(135, 169, 135, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
-    filter: blur(70px);
+    background: radial-gradient(circle, rgba(39, 39, 42, 0.15) 0%, rgba(9, 9, 11, 0) 70%);
+    filter: blur(80px);
     z-index: -10;
     pointer-events: none;
 }
 
-/* Glassmorphic Cards & Layouts */
+/* Flat Minimalist Panels */
 .glass-panel {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-glow);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    background-color: var(--nordic-card);
+    border: 1px solid var(--nordic-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Spatial Depth & 3D Perspective */
+/* 3D Perspective Card Layout */
 .perspective-container {
     perspective: 1500px;
 }
 
 .isometric-grid {
     transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .isometric-grid.active-3d {
-    transform: rotateX(12deg) rotateY(-6deg) rotateZ(0.5deg);
+    transform: rotateX(8deg) rotateY(-4deg) rotateZ(0.2deg);
 }
 
 .node-card-3d {
     transform-style: preserve-3d;
-    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease, border-color 0.4s ease;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
     will-change: transform;
 }
 
 .node-card-3d:hover {
-    transform: translateY(-8px) translateZ(25px) rotateX(-1deg) rotateY(1deg);
-    border-color: rgba(232, 180, 184, 0.6) !important;
-    box-shadow: 0 24px 48px rgba(232, 180, 184, 0.15);
+    transform: translateY(-4px) translateZ(10px);
+    border-color: #3f3f46 !important;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* Radial Gauge Styling */
+/* Minimalist Circular Gauge */
 .circular-gauge {
     position: relative;
-    width: 68px;
-    height: 68px;
+    width: 64px;
+    height: 64px;
 }
 .circular-chart {
     display: block;
@@ -89,14 +77,14 @@ body {
 }
 .circle-bg {
     fill: none;
-    stroke: rgba(45, 52, 54, 0.05);
-    stroke-width: 3.5;
+    stroke: #27272a;
+    stroke-width: 2.2;
 }
 .circle-fill {
     fill: none;
-    stroke-width: 3.5;
-    stroke-linecap: round;
-    transition: stroke-dasharray 0.6s cubic-bezier(0.25, 1, 0.5, 1), stroke 0.6s ease;
+    stroke-width: 2.2;
+    stroke-linecap: square; /* Square ends for minimalist feel */
+    transition: stroke-dasharray 0.5s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.5s ease;
 }
 .gauge-center-text {
     position: absolute;
@@ -104,48 +92,27 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 0.72rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
-/* Floating Animations */
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-5px); }
-    100% { transform: translateY(0px); }
-}
-
-.floating-element {
-    animation: float 4.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.4; }
-    100% { opacity: 1; }
-}
-
-.pulsing-badge {
-    animation: pulse 2.2s ease-in-out infinite;
-}
-
-/* Terminal Screen styling - Warm off-black charcoal slate */
+/* Minimal Terminal Screen */
 .terminal-screen {
-    background: rgba(45, 52, 54, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.2);
+    background-color: #0c0c0e;
+    border: 1px solid var(--nordic-border);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Custom Scrollbar for spa light mode */
+/* Scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 0, 0, 0.05);
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(45, 52, 54, 0.12);
-    border-radius: 3px;
+    background: #3f3f46;
+    border-radius: 2px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(45, 52, 54, 0.22);
+    background: #52525b;
 }

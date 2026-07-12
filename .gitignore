@@ -23,3 +23,5 @@ fix_app_js.py
 simulate_render.js
 get_browser_logs.py
 get_light_colors.py
+check_hashes.py
+compiled.js

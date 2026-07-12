@@ -6,16 +6,18 @@ const CONTROL_SERVICE_URL = "/api/control/service";
 const CONTROL_LOGS_URL = "/api/control/logs";
 const CONTROL_TASK_CANCEL_URL = "/api/control/task/cancel";
 
-// Nordic Minimalist indicator colors
+// Nordic Minimalist indicator colors in 10% increments
 function getGoodBadColor(percentage) {
-    // Interpolates between Emerald HSL(159, 75%, 45%) and Rose HSL(350, 75%, 55%)
-    const h = Math.max(0, 159 - (percentage * 1.69));
+    const step = Math.round(percentage / 10) * 10;
+    // Interpolates between Emerald HSL(159, 70%, 48%) and Rose HSL(350, 70%, 48%) in 10% steps
+    const h = Math.max(0, 159 - (step * 1.69));
     return `hsl(${h}, 70%, 48%)`;
 }
 
 function getStrongWeakColor(percentage) {
-    // Interpolates between Steel Blue HSL(217, 70%, 55%) and Gold HSL(38, 70%, 50%)
-    const h = Math.max(38, 217 - (percentage * 1.79));
+    const step = Math.round(percentage / 10) * 10;
+    // Interpolates between Steel Blue HSL(217, 65%, 52%) and Gold HSL(38, 65%, 52%) in 10% steps
+    const h = Math.max(38, 217 - (step * 1.79));
     return `hsl(${h}, 65%, 52%)`;
 }
 

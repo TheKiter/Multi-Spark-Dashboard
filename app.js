@@ -471,49 +471,7 @@ const App = () => {
                     {/* Render active tab */}
                     {activeTab === "all-nodes" && (
                         <div className="space-y-8">
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
-                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
-                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Active Nodes</span>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-headline-lg text-headline-lg text-tertiary glow-teal">{onlineNodes}</span>
-                                        <span className="font-label-mono text-label-mono text-tertiary/60">/ {totalNodes}</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-tertiary glow-teal" style={{ width: `${(onlineNodes/totalNodes)*100}%` }}></div>
-                                    </div>
-                                </div>
-                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
-                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Global GPU Load</span>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-headline-lg text-headline-lg text-secondary glow-orange">{avgGpuLoad}%</span>
-                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Avg</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-secondary glow-orange" style={{ width: `${avgGpuLoad}%` }}></div>
-                                    </div>
-                                </div>
-                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
-                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">vLLM KV Cache</span>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-headline-lg text-headline-lg text-tertiary">{avgKvCache}%</span>
-                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Avg</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-tertiary" style={{ width: `${avgKvCache}%` }}></div>
-                                    </div>
-                                </div>
-                                <div className="extruded-raised bg-surface rounded-xl p-container-padding flex flex-col gap-2">
-                                    <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Queued Jobs</span>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-headline-lg text-headline-lg text-secondary">{queueWaitingCount}</span>
-                                        <span className="font-label-mono text-label-mono text-on-surface-variant">Waiting</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-secondary" style={{ width: queueWaitingCount > 0 ? "100%" : "0%" }}></div>
-                                    </div>
-                                </div>
-                            </div>
+
                             
                             {/* View Selector Row */}
                             <div className="flex justify-between items-center bg-surface-container-low p-3 rounded-xl border border-white/5 shadow-[2px_2px_6px_var(--shadow-dark)]">

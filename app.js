@@ -504,7 +504,7 @@ const App = () => {
                             {/* Node display block */}
                             {viewMode === "grid" ? (
                                 /* GRID VIEW (Stepped vertical bars layout) */
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {Object.keys(metrics.nodes).map(nodeId => {
                                         const node = metrics.nodes[nodeId];
                                         const cleanId = nodeId.replace("spark-", "");
@@ -747,7 +747,7 @@ const App = () => {
                                 Cluster GPU Telemetry
                             </h2>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {Object.keys(metrics.nodes).map(nodeId => {
                                     const node = metrics.nodes[nodeId];
                                     if (!node.online || !node.gpu || !node.gpu.online) return null;
@@ -947,7 +947,7 @@ const App = () => {
                                         <div key={nodeId} className="space-y-3 border-l-2 border-tertiary/30 pl-4">
                                             <h3 className="font-bold text-[11px] text-tertiary tracking-wider font-mono uppercase">Node {cleanId} Container Services</h3>
                                             
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {node.dockers.map(d => {
                                                     const ramUsed = d.mem_usage.includes('/') ? d.mem_usage.split('/')[0].trim() : d.mem_usage;
                                                     const totalRam = d.mem_usage.includes('/') ? d.mem_usage.split('/')[1].trim() : '';

@@ -217,39 +217,7 @@ const App = () => {
     
     const isLightTheme = theme === "light";
     
-    const renderGpuCard = (nodeId, node) => {
-        const cleanId = nodeId.replace("spark-", "");
-        const vramPerc = Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100);
-        
-        return (
-            <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl space-y-4">
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                    <span className="font-bold text-on-surface uppercase font-label-mono">Node {cleanId}</span>
-                    <span className="text-[9px] bg-tertiary/10 border border-tertiary/20 text-tertiary px-2 py-0.5 rounded font-bold">{(node.gpu.gpu_name || "GPU").replace("NVIDIA", "").trim()}</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    {CircularGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
-                    {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: "TEMP", suffix: "\u00b0C", colorFn: getGoodBadColor, isLightTheme })}
-                    {CircularGauge({ value: node.gpu.power_draw, maxVal: node.gpu.power_limit || 300, label: "POWER", suffix: "W", colorFn: getStrongWeakColor, isLightTheme })}
-                    {CircularGauge({ value: vramPerc, label: "VRAM", colorFn: getStrongWeakColor, isLightTheme })}
-                </div>
-                
-                <div className="bg-surface-container-lowest/50 p-3 rounded-lg border border-white/5 text-[10px] font-mono text-on-surface-variant space-y-1.5">
-                    <div className="flex justify-between"><span>VRAM Allocation:</span><span className="font-bold text-on-surface">{(node.gpu.mem_used).toFixed(0)} / {(node.gpu.mem_total).toFixed(0)} MB</span></div>
-                    <div className="flex justify-between"><span>Power Limit:</span><span className="font-bold text-on-surface">{node.gpu.power_limit} W</span></div>
-                    <div className="flex justify-between"><span>Throttle Reason:</span><span className={`font-bold ${node.gpu.throttle_reason !== "None" ? "text-red-400 animate-pulse font-black" : "text-tertiary"}`}>{node.gpu.throttle_reason}</span></div>
-                </div>
-                
-                <div className="flex gap-2">
-                    <button onClick={() => setLogModal({ node_id: nodeId, type: "service", name: "nvml", logs: `NVML status on ${cleanId} is normal.\nGPU Model: ${node.gpu.gpu_name || "NVIDIA GPU"}\nThrottle Reason: ${node.gpu.throttle_reason}\nDriver Version: NV-535.129.03` })}
-                            className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-label-mono text-on-surface-variant hover:text-tertiary transition-all border border-white/5 active:scale-95 text-[10px] uppercase font-bold text-center">
-                        Diagnostics
-                    </button>
-                </div>
-            </div>
-        );
-    };
+
     
     // Compile Warnings and Alarms
     let activeAlarm = null;
@@ -321,15 +289,7 @@ const App = () => {
                         <span>All Nodes</span>
                     </button>
                     
-                    <button onClick={() => setActiveTab("gpu")}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
-                                activeTab === "gpu"
-                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
-                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
-                            }`}>
-                        <span className="material-symbols-outlined text-[18px]">memory</span>
-                        <span>GPU Clusters</span>
-                    </button>
+
                     
                     <button onClick={() => setActiveTab("vllm")}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
@@ -693,61 +653,7 @@ const App = () => {
                         </div>
                     )}
                     
-                    {activeTab === "gpu" && (
-                        <div className="space-y-8">
-                            <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px]">memory</span>
-                                Cluster GPU Telemetry
-                            </h2>
-                            
-                            {/* GPU Grouping Container */}
-                            <div className="space-y-8">
-                                {/* 1. Spark GPU Cluster Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                                        <span className="material-symbols-outlined text-tertiary text-sm">hub</span>
-                                        <h3 className="font-bold text-[10px] text-tertiary tracking-wider font-mono uppercase">Spark GPU Cluster (Nodes 8828 & e23a)</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {['spark-8828', 'spark-e23a'].map(nodeId => {
-                                            const node = metrics.nodes[nodeId];
-                                            if (!node || !node.online || !node.gpu || !node.gpu.online) {
-                                                return (
-                                                    <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl flex flex-col justify-center items-center h-[200px] opacity-55">
-                                                        <span className="material-symbols-outlined text-outline-variant text-2xl mb-1">link_off</span>
-                                                        <span className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">Node {nodeId.replace("spark-", "")} GPU Offline</span>
-                                                    </div>
-                                                );
-                                            }
-                                            return renderGpuCard(nodeId, node);
-                                        })}
-                                    </div>
-                                </div>
 
-                                {/* 2. Standalone GPU Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                                        <span className="material-symbols-outlined text-secondary text-sm">desktop_windows</span>
-                                        <h3 className="font-bold text-[10px] text-secondary tracking-wider font-mono uppercase">Standalone GPU (Node 1dd6)</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {['spark-1dd6'].map(nodeId => {
-                                            const node = metrics.nodes[nodeId];
-                                            if (!node || !node.online || !node.gpu || !node.gpu.online) {
-                                                return (
-                                                    <div key={nodeId} className="extruded-raised bg-surface p-5 rounded-xl flex flex-col justify-center items-center h-[200px] opacity-55">
-                                                        <span className="material-symbols-outlined text-outline-variant text-2xl mb-1">link_off</span>
-                                                        <span className="text-[10px] font-mono font-bold text-on-surface-variant uppercase">Node 1dd6 GPU Offline</span>
-                                                    </div>
-                                                );
-                                            }
-                                            return renderGpuCard(nodeId, node);
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     
                     {activeTab === "vllm" && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">

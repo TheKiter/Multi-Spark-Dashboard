@@ -192,6 +192,42 @@ async function fetchTelemetry() {
     }
 }
 
+// Visual dynamic color and radial dial rendering helpers
+function getGoodBadColor(percentage) {
+    // 0% is good (green = 145), 100% is bad (red = 0)
+    const hue = Math.max(0, 145 - (percentage * 1.45));
+    return `hsl(${hue}, 90%, 50%)`;
+}
+
+function getStrongWeakColor(percentage) {
+    // 0% is weak (orange = 30), 100% is strong (purple = 270)
+    // Wrap backwards: 30 -> 0 -> 330 -> 300 -> 270
+    let hue = 30 - (percentage * 1.2);
+    if (hue < 0) hue += 360;
+    return `hsl(${hue}, 95%, 55%)`;
+}
+
+function makeCustomDial(value, maxVal, label, suffix, colorFn) {
+    const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
+    const color = colorFn(perc);
+    return `
+        <div class="gauge-item">
+            <div class="circular-gauge">
+                <svg viewBox="0 0 36 36" class="circular-chart">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle-fill" stroke-dasharray="${perc}, 100" stroke="${color}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                </svg>
+                <div class="gauge-center-text font-tabular">${value}${suffix}</div>
+            </div>
+            <span class="gauge-label">${label}</span>
+        </div>
+    `;
+}
+
+function makeDial(value, label, colorFn) {
+    return makeCustomDial(value, 100, label, "%", colorFn);
+}
+
 function renderHardwareCards(nodes) {
     const container = document.getElementById("nodes-container");
     if (!container) return;
@@ -253,9 +289,9 @@ function renderHardwareCards(nodes) {
         
         let gpuHtml = "";
         if (node.gpu.online) {
+            const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
             const vramUsedGB = (node.gpu.mem_used / 1024).toFixed(1);
             const vramTotalGB = (node.gpu.mem_total / 1024).toFixed(1);
-            const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
             
             let throttleBadge = "";
             if (node.gpu.throttle_reason && node.gpu.throttle_reason !== "None") {
@@ -268,33 +304,14 @@ function renderHardwareCards(nodes) {
                         <h4>GPU Accelerator (NVIDIA GB10) ${throttleBadge}</h4>
                         <span class="gpu-badge online">ONLINE</span>
                     </div>
-                    <div class="gpu-hardware-grid">
-                        <div class="heatmap-wrapper">
-                            <canvas id="canvas-${nodeId}" width="160" height="80"></canvas>
-                        </div>
-                        <div class="gpu-hardware-metrics">
-                            <div class="hw-metric">
-                                <span class="label">Utilization:</span>
-                                <span class="value font-tabular">${node.gpu.gpu_util}%</span>
-                            </div>
-                            <div class="hw-metric">
-                                <span class="label">Temperature:</span>
-                                <span class="value font-tabular">${node.gpu.temp}°C</span>
-                            </div>
-                            <div class="hw-metric">
-                                <span class="label">Power Draw:</span>
-                                <span class="value font-tabular">${node.gpu.power_draw}W / ${node.gpu.power_limit}W</span>
-                            </div>
-                        </div>
+                    <div class="gpu-gauges-row">
+                        ${makeDial(node.gpu.gpu_util, 'GPU LOAD', getGoodBadColor)}
+                        ${makeCustomDial(node.gpu.temp, 100, 'TEMP', '°C', getGoodBadColor)}
+                        ${makeCustomDial(node.gpu.power_draw, node.gpu.power_limit || 300, 'POWER', 'W', getStrongWeakColor)}
+                        ${makeDial(vramPerc, 'VRAM', getStrongWeakColor)}
                     </div>
-                    <div class="gpu-stat-full">
-                        <div class="bar-row">
-                            <span>VRAM Allocation</span>
-                            <span class="font-tabular">${vramUsedGB}GB / ${vramTotalGB}GB</span>
-                        </div>
-                        <div class="mini-bar-well">
-                            <div class="mini-bar-fill" style="width: ${vramPerc}%; background: linear-gradient(90deg, var(--glow-violet), var(--glow-orange));"></div>
-                        </div>
+                    <div class="gpu-vram-label font-tabular" style="text-align: center; font-size: 0.72rem; margin-top: 6px; color: var(--text-secondary);">
+                        Allocated VRAM: <span class="mono-num highlight-val">${vramUsedGB} GB / ${vramTotalGB} GB</span>
                     </div>
                 </div>
             `;
@@ -320,55 +337,26 @@ function renderHardwareCards(nodes) {
                     <span class="node-badge online">ONLINE</span>
                 </div>
                 <div class="node-body">
-                    <!-- System Performance Rows -->
-                    <div class="sys-metrics">
-                        <!-- CPU -->
-                        <div class="sys-metric-bar">
-                            <div class="bar-row">
-                                <span>CPU Utilization ${iowaitVal > 0 ? `<span class="metric-sub-label" style="font-size:0.75rem; color:var(--text-secondary); margin-left:4px;">(I/O Wait: ${iowaitVal}%)</span>` : ""}</span>
-                                <span class="font-tabular">${node.cpu}%</span>
-                            </div>
-                            <div class="mini-bar-well">
-                                <div class="mini-bar-fill" style="width: ${node.cpu}%; background: var(--glow-orange);"></div>
-                            </div>
-                        </div>
-                        <!-- RAM -->
-                        <div class="sys-metric-bar">
-                            <div class="bar-row">
-                                <span>System RAM</span>
-                                <span class="font-tabular">${ramUsedGB}GB / ${ramTotalGB}GB (${ramPerc}%)</span>
-                            </div>
-                            <div class="mini-bar-well">
-                                <div class="mini-bar-fill" style="width: ${ramPerc}%; background: var(--glow-violet);"></div>
-                            </div>
+                    <!-- Circular Gauges Grid -->
+                    <div class="node-gauges-row">
+                        ${makeDial(node.cpu, 'CPU', getGoodBadColor)}
+                        ${makeDial(ramPerc, 'RAM', getGoodBadColor)}
+                        ${swapTotal > 0 ? makeDial(swapPerc, 'Swap', getGoodBadColor) : ""}
+                        ${makeDial(node.disk.perc, 'Disk', getGoodBadColor)}
+                    </div>
+                    
+                    <!-- Text Details & Stats -->
+                    <div class="sys-metrics-mini">
+                        <div class="mini-metrics-grid">
+                            <div>CPU Wait: <span class="mono-num highlight-val">${iowaitVal}%</span></div>
+                            <div>Memory PSI: <span class="mono-num highlight-val">${psiSome}%</span></div>
+                            <div>RAM: <span class="mono-num font-tabular">${ramUsedGB}GB / ${ramTotalGB}GB</span></div>
+                            ${swapTotal > 0 ? `<div>Swap: <span class="mono-num font-tabular">${swapUsedGB}GB / ${swapTotalGB}GB</span></div>` : ""}
                         </div>
                         
-                        <!-- Swap Space -->
-                        ${swapTotal > 0 ? `
-                        <div class="sys-metric-bar">
-                            <div class="bar-row">
-                                <span>Swap Space</span>
-                                <span class="font-tabular">${swapUsedGB}GB / ${swapTotalGB}GB (${swapPerc}%)</span>
-                            </div>
-                            <div class="mini-bar-well">
-                                <div class="mini-bar-fill" style="width: ${swapPerc}%; background: #90caf9;"></div>
-                            </div>
-                        </div>
-                        ` : ""}
-                        
-                        <!-- Disk space & IO activity -->
-                        <div class="sys-metric-bar">
-                            <div class="bar-row">
-                                <span>Disk Space (/)</span>
-                                <span class="font-tabular">${node.disk.used}GB / ${node.disk.total}GB (${node.disk.perc}%)</span>
-                            </div>
-                            <div class="mini-bar-well">
-                                <div class="mini-bar-fill" style="width: ${node.disk.perc}%; background: #00e676;"></div>
-                            </div>
-                            <div class="bar-row" style="font-size: 0.72rem; margin-top: 4px; color: var(--text-secondary); font-weight: 500;">
-                                <span>Disk Read: <span class="mono-num">${formatRate(readRate)}</span></span>
-                                <span>Disk Write: <span class="mono-num">${formatRate(writeRate)}</span></span>
-                            </div>
+                        <div class="disk-io-activity">
+                            <span>Disk Read: <span class="mono-num">${formatRate(readRate)}</span></span>
+                            <span>Disk Write: <span class="mono-num">${formatRate(writeRate)}</span></span>
                         </div>
                     </div>
                     
@@ -386,8 +374,10 @@ function renderHardwareCards(nodes) {
         const node = nodes[nodeId];
         if (node.online && node.gpu.online) {
             const canvas = document.getElementById(`canvas-${nodeId}`);
-            const grid = getOrCreateGrid(nodeId);
-            updateHeatmap(canvas, grid, node.gpu.temp, node.gpu.gpu_util);
+            if (canvas) {
+                const grid = getOrCreateGrid(nodeId);
+                updateHeatmap(canvas, grid, node.gpu.temp, node.gpu.gpu_util);
+            }
         }
     }
 }

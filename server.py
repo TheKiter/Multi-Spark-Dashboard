@@ -5,6 +5,8 @@ import urllib.parse
 import subprocess
 import os
 import re
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 PORT = 8050
@@ -14,7 +16,7 @@ SUDO_PASS = "007@1Spark007@1"
 
 # Script that runs on the target node (local or remote via SSH) to collect all metrics in a single round-trip
 COLLECTOR_SCRIPT = r"""
-import json, os, subprocess, re, time
+import json, os, subprocess, re, time, urllib.request
 
 def get_stats():
     # 1. CPU & I/O Wait
@@ -207,7 +209,7 @@ def get_stats():
                     oom_events.append({"text": line, "type": "xid" if is_xid else "oom"})
         except: pass
 
-    return {
+    res_dict = {
         "cpu": cpu,
         "iowait": iowait,
         "ram": {
@@ -240,6 +242,68 @@ def get_stats():
         "oom_events": oom_events
     }
 
+    # 8. Local vLLM Stats
+    vllm_results = {}
+    clean_id = NODE_ID.replace("spark-", "")
+    for p in VLLM_PORTS:
+        metrics_obj = {"running_requests": 0, "waiting_requests": 0, "kv_cache_usage": 0.0, "online": False}
+        try:
+            req = urllib.request.Request(f"http://127.0.0.1:{p}/metrics")
+            with urllib.request.urlopen(req, timeout=0.8) as response:
+                content = response.read().decode()
+                running = re.search(r'vllm:num_requests_running\{[^}]*\} (\d+\.?\d*)', content)
+                waiting = re.search(r'vllm:num_requests_waiting\{[^}]*\} (\d+\.?\d*)', content)
+                kv_cache = re.search(r'vllm:kv_cache_usage_perc\{[^}]*\} (\d+\.?\d*)', content)
+                metrics_obj = {
+                    "running_requests": int(float(running.group(1))) if running else 0,
+                    "waiting_requests": int(float(waiting.group(1))) if waiting else 0,
+                    "kv_cache_usage": float(kv_cache.group(1)) * 100.0 if kv_cache else 0.0,
+                    "online": True
+                }
+        except:
+            pass
+            
+        metrics_obj["node_id"] = NODE_ID
+        
+        model_name = None
+        if metrics_obj["online"]:
+            try:
+                req = urllib.request.Request(f"http://127.0.0.1:{p}/v1/models")
+                with urllib.request.urlopen(req, timeout=0.8) as response:
+                    data = json.loads(response.read().decode())
+                    if "data" in data and len(data["data"]) > 0:
+                        model_name = data["data"][0]["id"]
+            except:
+                pass
+                
+        if not model_name:
+            if p == 8000:
+                model_name = "deepseek-v4-flash"
+            elif p == 8001:
+                if NODE_ID == "spark-1dd6":
+                    model_name = "hermes4-70b"
+                else:
+                    model_name = "qwen-2.5-7b"
+            elif p == 8002:
+                if NODE_ID == "spark-1dd6":
+                    model_name = "qwen3.6-35b"
+                else:
+                    model_name = "hermes4-14b"
+            elif p == 8003:
+                if NODE_ID == "spark-1dd6":
+                    model_name = "hermes4-14b"
+                else:
+                    model_name = f"vllm-{p}"
+            else:
+                model_name = f"vllm-{p}"
+        
+        model_name = model_name.split("/")[-1]
+        display_key = f"{model_name} ({clean_id})"
+        vllm_results[display_key] = metrics_obj
+        
+    res_dict["vllm_data"] = vllm_results
+    return res_dict
+
 print(json.dumps(get_stats()))
 """
 
@@ -254,11 +318,15 @@ def load_config():
 
 def query_node_stats(node):
     """Executes the telemetry script locally or remotely via SSH."""
+    ports_str = json.dumps(node.get("vllm_ports", []))
+    node_id_str = json.dumps(node.get("id"))
+    full_script = f"VLLM_PORTS = {ports_str}\nNODE_ID = {node_id_str}\n" + COLLECTOR_SCRIPT
+    
     if node.get("is_local"):
         cmd = ["python3"]
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, _ = p.communicate(input=COLLECTOR_SCRIPT.encode(), timeout=4)
+            stdout, _ = p.communicate(input=full_script.encode(), timeout=5)
             data = json.loads(stdout.decode().strip())
             data["online"] = True
             return data
@@ -273,14 +341,48 @@ def query_node_stats(node):
         ]
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, _ = p.communicate(input=COLLECTOR_SCRIPT.encode(), timeout=5)
+            stdout, _ = p.communicate(input=full_script.encode(), timeout=6)
             data = json.loads(stdout.decode().strip())
             data["online"] = True
             return data
         except Exception:
             pass
             
-    # Return offline state
+    # Generate default offline entries if node is offline
+    node_id = node.get("id")
+    clean_id = node_id.replace("spark-", "")
+    vllm_ports = node.get("vllm_ports", [])
+    vllm_results = {}
+    for p in vllm_ports:
+        if p == 8000:
+            model_name = "deepseek-v4-flash"
+        elif p == 8001:
+            if node_id == "spark-1dd6":
+                model_name = "hermes4-70b"
+            else:
+                model_name = "qwen-2.5-7b"
+        elif p == 8002:
+            if node_id == "spark-1dd6":
+                model_name = "qwen3.6-35b"
+            else:
+                model_name = "hermes4-14b"
+        elif p == 8003:
+            if node_id == "spark-1dd6":
+                model_name = "hermes4-14b"
+            else:
+                model_name = f"vllm-{p}"
+        else:
+            model_name = f"vllm-{p}"
+        
+        display_key = f"{model_name} ({clean_id})"
+        vllm_results[display_key] = {
+            "running_requests": 0,
+            "waiting_requests": 0,
+            "kv_cache_usage": 0.0,
+            "online": False,
+            "node_id": node_id
+        }
+        
     return {
         "online": False,
         "cpu": 0.0,
@@ -289,7 +391,8 @@ def query_node_stats(node):
         "gpu": {"online": False, "temp": 0, "gpu_util": 0, "mem_util": 0, "mem_used": 0, "mem_total": 0, "power_draw": 0, "power_limit": 0, "throttle_reason": "None"},
         "hogs": [],
         "dockers": [],
-        "oom_events": []
+        "oom_events": [],
+        "vllm_data": vllm_results
     }
 
 def get_fastapi_queue(endpoint_ip, port):
@@ -322,59 +425,57 @@ def run_command_on_node(node, shell_cmd):
         except subprocess.CalledProcessError as e:
             return f"Error: {e.output.decode().strip()}"
 
-def query_vllm_via_ssh(node, port, path):
-    if node.get("is_local"):
-        try:
-            req = urllib.request.Request(f"http://127.0.0.1:{port}{path}")
-            with urllib.request.urlopen(req, timeout=1.0) as response:
-                return response.read().decode()
-        except Exception:
-            try:
-                req = urllib.request.Request(f"http://{node.get('ip')}:{port}{path}")
-                with urllib.request.urlopen(req, timeout=1.0) as response:
-                    return response.read().decode()
-            except Exception:
-                return None
-    else:
-        cmd = f"curl -s --max-time 1 http://127.0.0.1:{port}{path}"
-        out = run_command_on_node(node, cmd)
-        if out and not out.startswith("Error:"):
-            return out
-        try:
-            req = urllib.request.Request(f"http://{node.get('ip')}:{port}{path}")
-            with urllib.request.urlopen(req, timeout=1.0) as response:
-                return response.read().decode()
-        except Exception:
-            return None
+cached_payload = None
+cache_lock = threading.Lock()
 
-def get_vllm_model_name(node, port):
-    content = query_vllm_via_ssh(node, port, "/v1/models")
-    if content:
+def update_cache_loop():
+    global cached_payload
+    # Cache updater loop running every 2.5 seconds
+    while True:
         try:
-            data = json.loads(content)
-            if "data" in data and len(data["data"]) > 0:
-                return data["data"][0]["id"]
-        except Exception:
-            pass
-    return None
+            nodes = load_config()
+            if not nodes:
+                time.sleep(1.0)
+                continue
+                
+            node_results = {}
+            with ThreadPoolExecutor(max_workers=len(nodes) or 1) as executor:
+                futures = {executor.submit(query_node_stats, n): n["id"] for n in nodes}
+                for fut in futures:
+                    node_id = futures[fut]
+                    try:
+                        node_results[node_id] = fut.result()
+                    except Exception:
+                        node_results[node_id] = {"online": False}
 
-def get_vllm_instance_metrics(node, port):
-    content = query_vllm_via_ssh(node, port, "/metrics")
-    if content:
-        try:
-            running = re.search(r'vllm:num_requests_running\{[^}]*\} (\d+\.?\d*)', content)
-            waiting = re.search(r'vllm:num_requests_waiting\{[^}]*\} (\d+\.?\d*)', content)
-            kv_cache = re.search(r'vllm:kv_cache_usage_perc\{[^}]*\} (\d+\.?\d*)', content)
+            queue_data = {"active": [], "completed": []}
+            vllm_data = {}
+            endpoint_node = next((n for n in nodes if n.get("is_endpoint_host")), None)
             
-            return {
-                "running_requests": int(float(running.group(1))) if running else 0,
-                "waiting_requests": int(float(waiting.group(1))) if waiting else 0,
-                "kv_cache_usage": float(kv_cache.group(1)) * 100.0 if kv_cache else 0.0,
-                "online": True
+            if endpoint_node:
+                try:
+                    queue_data = get_fastapi_queue(endpoint_node.get("ip"), endpoint_node.get("fastapi_port", 8000))
+                except:
+                    pass
+                
+            for nid, res in node_results.items():
+                if "vllm_data" in res:
+                    vllm_data.update(res["vllm_data"])
+                    del res["vllm_data"]
+
+            payload = {
+                "nodes": node_results,
+                "queue": queue_data,
+                "vllm": vllm_data,
+                "timestamp": int(time.time())
             }
-        except Exception:
-            pass
-    return {"running_requests": 0, "waiting_requests": 0, "kv_cache_usage": 0.0, "online": False}
+            with cache_lock:
+                cached_payload = payload
+        except Exception as e:
+            print(f"Error updating telemetry cache: {e}")
+        time.sleep(2.5)
+
+
 
 class TelemetryAPIHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -483,76 +584,22 @@ class TelemetryAPIHandler(http.server.BaseHTTPRequestHandler):
 
         # 1. Telemetry API endpoint
         if path == "/api/metrics":
-            nodes = load_config()
-            
-            # Query all nodes concurrently using thread pool
-            node_results = {}
-            with ThreadPoolExecutor(max_workers=len(nodes) or 1) as executor:
-                futures = {executor.submit(query_node_stats, n): n["id"] for n in nodes}
-                for fut in futures:
-                    node_id = futures[fut]
-                    try:
-                        node_results[node_id] = fut.result()
-                    except Exception:
-                        node_results[node_id] = {"online": False}
-
-            # Fetch active queue from endpoint host
-            queue_data = {"active": [], "completed": []}
-            vllm_data = {}
-            endpoint_node = next((n for n in nodes if n.get("is_endpoint_host")), None)
-            
-            if endpoint_node:
-                queue_data = get_fastapi_queue(endpoint_node.get("ip"), endpoint_node.get("fastapi_port", 8000))
-                
-            # Fetch each vLLM instance metrics from all configured nodes
-            for n in nodes:
-                vllm_ports = n.get("vllm_ports", [])
-                ip = n.get("ip")
-                node_id = n.get("id")
-                clean_id = node_id.replace("spark-", "")
-                for p in vllm_ports:
-                    metrics_obj = get_vllm_instance_metrics(n, p)
-                    metrics_obj["node_id"] = node_id
-                    
-                    # Resolve model name dynamically or fall back
-                    model_name = get_vllm_model_name(n, p)
-                    if not model_name:
-                        if p == 8000:
-                            model_name = "deepseek-v4-flash"
-                        elif p == 8001:
-                            if node_id == "spark-1dd6":
-                                model_name = "hermes4-70b"
-                            else:
-                                model_name = "qwen-2.5-7b"
-                        elif p == 8002:
-                            if node_id == "spark-1dd6":
-                                model_name = "qwen3.6-35b"
-                            else:
-                                model_name = "hermes4-14b"
-                        elif p == 8003:
-                            if node_id == "spark-1dd6":
-                                model_name = "hermes4-14b"
-                            else:
-                                model_name = f"vllm-{p}"
-                        else:
-                            model_name = f"vllm-{p}"
-                    
-                    # Remove folder path if any (e.g. Qwen/Qwen2.5-7B-Instruct -> Qwen2.5-7B-Instruct)
-                    model_name = model_name.split("/")[-1]
-                    
-                    # Key by model name and clean node ID
-                    display_key = f"{model_name} ({clean_id})"
-                    vllm_data[display_key] = metrics_obj
-
-            payload = {
-                "nodes": node_results,
-                "queue": queue_data,
-                "vllm": vllm_data,
-                "timestamp": int(os.popen("date +%s").read().strip() or "0")
-            }
-            
             self.send_cors_response(200)
-            self.wfile.write(json.dumps(payload).encode())
+            with cache_lock:
+                current_payload = cached_payload
+            
+            if current_payload:
+                self.wfile.write(json.dumps(current_payload).encode())
+            else:
+                # Provide a fallback initial status if cache hasn't loaded yet
+                fallback = {
+                    "nodes": {},
+                    "queue": {"active": [], "completed": []},
+                    "vllm": {},
+                    "timestamp": int(time.time()),
+                    "status": "initializing"
+                }
+                self.wfile.write(json.dumps(fallback).encode())
 
         # 2. Get Logs endpoint
         elif path == "/api/control/logs":
@@ -604,6 +651,10 @@ class TelemetryAPIHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
 if __name__ == "__main__":
+    # Start background cache update thread
+    t = threading.Thread(target=update_cache_loop, daemon=True)
+    t.start()
+    
     server = http.server.HTTPServer(("0.0.0.0", PORT), TelemetryAPIHandler)
     print(f"Telemetry Collector listening on port {PORT}...")
     try:

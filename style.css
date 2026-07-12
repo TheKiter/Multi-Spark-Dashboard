@@ -68,7 +68,7 @@
 body {
     background-color: var(--bg-color);
     transition: background-color 0.3s ease;
-    zoom: 0.6;
+    zoom: 0.8;
 }
 
 /* Neumorphic Containers */

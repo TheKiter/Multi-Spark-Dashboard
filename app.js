@@ -673,17 +673,17 @@ const App = () => {
                                             </h3>
                                         </div>
                                         <button onClick={() => setSelectedNodeId(null)}
-                                                className="text-on-surface-variant hover:text-red-400 font-label-mono text-[9px] uppercase tracking-wider px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest transition-all border border-white/5">
+                                                className="text-on-surface-variant hover:text-red-400 font-label-mono text-[12px] uppercase tracking-wider px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest transition-all border border-white/5">
                                             Close Inspector
                                         </button>
                                     </div>
                                     
                                     {metrics.nodes[selectedNodeId].online ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-[10px]">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-[13px]">
                                             {/* Containerized Processes (Docker) */}
                                             <div className="space-y-3">
-                                                <h4 className="font-bold text-tertiary uppercase tracking-wider text-[9px] border-b border-white/5 pb-1 flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-[12px]">dock</span>
+                                                <h4 className="font-bold text-tertiary uppercase tracking-wider text-[12px] border-b border-white/5 pb-1 flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[15px]">dock</span>
                                                     Docker Containers (Loaded & Unloaded)
                                                 </h4>
                                                 <div className="divide-y divide-outline-variant/10 max-h-[300px] overflow-y-auto pr-1">
@@ -694,14 +694,14 @@ const App = () => {
                                                                 <div key={d.name} className="py-2.5 flex justify-between items-center hover:bg-surface-container-low/20 px-1 rounded transition-colors">
                                                                     <div className="flex flex-col gap-0.5 max-w-[70%]">
                                                                         <span className="text-on-surface font-semibold truncate">{d.name}</span>
-                                                                        <span className="text-[8px] text-on-surface-variant/75 truncate">{d.image}</span>
-                                                                        <span className="text-[8px] text-on-surface-variant/50 truncate">{d.status}</span>
+                                                                        <span className="text-[11px] text-on-surface-variant/75 truncate">{d.image}</span>
+                                                                        <span className="text-[11px] text-on-surface-variant/50 truncate">{d.status}</span>
                                                                     </div>
                                                                     <div className="text-right flex flex-col items-end gap-1">
-                                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${isRunning ? "bg-tertiary/10 text-tertiary border border-tertiary/20" : "bg-outline-variant/10 text-on-surface-variant/55 border border-outline-variant/10"}`}>
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${isRunning ? "bg-tertiary/10 text-tertiary border border-tertiary/20" : "bg-outline-variant/10 text-on-surface-variant/55 border border-outline-variant/10"}`}>
                                                                             {d.state.toUpperCase()}
                                                                         </span>
-                                                                        <span className="text-[8px] text-on-surface font-mono opacity-85">
+                                                                        <span className="text-[11px] text-on-surface font-mono opacity-85">
                                                                             Mem: {d.mem_usage.split(" / ")[0]}
                                                                         </span>
                                                                     </div>
@@ -716,8 +716,8 @@ const App = () => {
                                             
                                             {/* Native Software / Processes */}
                                             <div className="space-y-3">
-                                                <h4 className="font-bold text-secondary uppercase tracking-wider text-[9px] border-b border-white/5 pb-1 flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-[12px]">settings_applications</span>
+                                                <h4 className="font-bold text-secondary uppercase tracking-wider text-[12px] border-b border-white/5 pb-1 flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[15px]">settings_applications</span>
                                                     Running Software Services (Memory Footprint)
                                                 </h4>
                                                 <div className="divide-y divide-outline-variant/10 max-h-[300px] overflow-y-auto pr-1">
@@ -733,11 +733,11 @@ const App = () => {
                                                                 <div key={idx} className="py-2.5 flex justify-between items-center hover:bg-surface-container-low/20 px-1 rounded transition-colors">
                                                                     <div className="flex flex-col gap-0.5">
                                                                         <span className="text-on-surface font-semibold">{h.name}</span>
-                                                                        <span className="text-[8px] text-on-surface-variant/50">PID: {h.pid}</span>
+                                                                        <span className="text-[11px] text-on-surface-variant/50">PID: {h.pid}</span>
                                                                     </div>
                                                                     <div className="text-right flex flex-col items-end gap-0.5">
                                                                         <span className="text-on-surface font-bold">{estMemDisplay}</span>
-                                                                        <span className="text-[8px] text-on-surface-variant/65">Share: {h.mem}% RAM</span>
+                                                                        <span className="text-[11px] text-on-surface-variant/65">Share: {h.mem}% RAM</span>
                                                                     </div>
                                                                 </div>
                                                             );

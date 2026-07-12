@@ -1,29 +1,29 @@
-/* style.css */
+/* style.css - Serenity Spa UI theme */
 
 :root {
-    --glass-bg: rgba(10, 15, 30, 0.45);
-    --glass-border: rgba(255, 255, 255, 0.05);
-    --glass-glow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    --glass-bg: rgba(255, 255, 255, 0.68);
+    --glass-border: rgba(232, 180, 184, 0.22);
+    --glass-glow: 0 16px 40px rgba(184, 164, 164, 0.08), 0 2px 10px rgba(0, 0, 0, 0.01);
     
-    --glow-orange: #ff9100;
-    --glow-violet: #8c00ff;
-    --healthy: #22c55e;
-    --danger: #ef4444;
+    --glow-orange: #C5A059; /* Spa gold */
+    --glow-violet: #E8B4B8; /* Spa pink */
+    --healthy: #87A987; /* Sage green */
+    --danger: #D27D7D; /* Soft coral */
 }
 
 body {
-    background: radial-gradient(circle at 50% 50%, #0d1527 0%, #020617 100%);
-    font-family: 'Fira Sans', sans-serif;
-    color: #f8fafc;
+    background: radial-gradient(circle at 50% 50%, #FAF9F6 0%, #EFEFE9 100%);
+    font-family: 'Montserrat', sans-serif;
+    color: #2D3436;
 }
 
-/* Background glowing spatial spheres */
+/* Background glowing soft pastel spheres */
 .bg-glow-sphere {
     position: absolute;
     width: 600px;
     height: 600px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(140, 0, 255, 0.06) 0%, rgba(0, 0, 0, 0) 70%);
+    background: radial-gradient(circle, rgba(232, 180, 184, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
     filter: blur(80px);
     z-index: -10;
     pointer-events: none;
@@ -33,7 +33,7 @@ body {
     width: 500px;
     height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 145, 0, 0.04) 0%, rgba(0, 0, 0, 0) 70%);
+    background: radial-gradient(circle, rgba(135, 169, 135, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
     filter: blur(70px);
     z-index: -10;
     pointer-events: none;
@@ -44,9 +44,10 @@ body {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-glow);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 /* Spatial Depth & 3D Perspective */
@@ -60,7 +61,7 @@ body {
 }
 
 .isometric-grid.active-3d {
-    transform: rotateX(16deg) rotateY(-8deg) rotateZ(1deg);
+    transform: rotateX(12deg) rotateY(-6deg) rotateZ(0.5deg);
 }
 
 .node-card-3d {
@@ -70,9 +71,9 @@ body {
 }
 
 .node-card-3d:hover {
-    transform: translateY(-10px) translateZ(30px) rotateX(-2deg) rotateY(2deg);
-    border-color: rgba(140, 0, 255, 0.3) !important;
-    box-shadow: 0 30px 60px rgba(140, 0, 255, 0.2);
+    transform: translateY(-8px) translateZ(25px) rotateX(-1deg) rotateY(1deg);
+    border-color: rgba(232, 180, 184, 0.6) !important;
+    box-shadow: 0 24px 48px rgba(232, 180, 184, 0.15);
 }
 
 /* Radial Gauge Styling */
@@ -88,7 +89,7 @@ body {
 }
 .circle-bg {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.03);
+    stroke: rgba(45, 52, 54, 0.05);
     stroke-width: 3.5;
 }
 .circle-fill {
@@ -102,19 +103,19 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 700;
 }
 
 /* Floating Animations */
 @keyframes float {
     0% { transform: translateY(0px); }
-    50% { transform: translateY(-6px); }
+    50% { transform: translateY(-5px); }
     100% { transform: translateY(0px); }
 }
 
 .floating-element {
-    animation: float 4s ease-in-out infinite;
+    animation: float 4.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -124,27 +125,27 @@ body {
 }
 
 .pulsing-badge {
-    animation: pulse 1.8s ease-in-out infinite;
+    animation: pulse 2.2s ease-in-out infinite;
 }
 
-/* Terminal Screen styling */
+/* Terminal Screen styling - Warm off-black charcoal slate */
 .terminal-screen {
-    background: rgba(5, 8, 16, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.6);
+    background: rgba(45, 52, 54, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Custom Scrollbar for Terminals */
+/* Custom Scrollbar for spa light mode */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.02);
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(45, 52, 54, 0.12);
     border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(45, 52, 54, 0.22);
 }

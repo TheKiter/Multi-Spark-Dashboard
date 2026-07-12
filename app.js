@@ -95,23 +95,37 @@ const Icons = {
 // Dial Gauge Component
 const CircularGauge = ({ value, maxVal = 100, label, suffix = "%", colorFn }) => {
     const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
-    const color = colorFn(perc);
+    const activeSegments = Math.round(perc / 10);
+    
+    const segments = [];
+    for (let i = 9; i >= 0; i--) {
+        const isActive = i < activeSegments;
+        const segmentPercent = (i + 1) * 10;
+        const color = isActive ? colorFn(segmentPercent) : '#27272a'; // Zinc-800 for inactive
+        
+        segments.push(
+            <div key={i} 
+                 className="h-1 w-6 rounded-sm transition-all duration-300"
+                 style={{ backgroundColor: color }} />
+        );
+    }
     
     return (
-        <div className="gauge-item flex flex-col items-center gap-1 flex-1">
-            <div className="circular-gauge relative w-16 h-16">
-                <svg viewBox="0 0 36 36" className="circular-chart w-full h-full">
-                    <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path className="circle-fill" 
-                          strokeDasharray={`${perc}, 100`} 
-                          stroke={color} 
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                </svg>
-                <div className="gauge-center-text absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold font-mono text-zinc-100">
-                    {value}{suffix}
-                </div>
+        <div className="gauge-item flex flex-col items-center gap-1 flex-1 select-none">
+            {/* Value on top */}
+            <span className="text-[9px] font-bold font-mono text-zinc-300">
+                {value}{suffix}
+            </span>
+            
+            {/* 10-segment stepped vertical bar */}
+            <div className="flex flex-col gap-[2px] p-0.5 bg-zinc-950/30 rounded border border-zinc-800/40 my-1">
+                {segments}
             </div>
-            <span className="gauge-label text-[8px] font-bold text-nordicMuted tracking-wider uppercase mt-1">{label}</span>
+            
+            {/* Label below */}
+            <span className="text-[8px] font-bold text-nordicMuted tracking-wider uppercase">
+                {label}
+            </span>
         </div>
     );
 };

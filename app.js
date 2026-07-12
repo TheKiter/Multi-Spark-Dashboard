@@ -82,6 +82,7 @@ const HorizontalSteppedGauge = ({ value, maxVal = 100, label, colorFn, isLightTh
 const App = () => {
     const [metrics, setMetrics] = React.useState(null);
     const [theme, setTheme] = React.useState(() => localStorage.getItem("spark-theme") || "dark");
+    const [zoom, setZoom] = React.useState(() => parseFloat(localStorage.getItem("spark-zoom") || "0.8"));
     const [activeTab, setActiveTab] = React.useState("all-nodes");
     const [viewMode, setViewMode] = React.useState("table"); // Default to high density table view as designed in Stitch
     const [logModal, setLogModal] = React.useState(null); // { node_id, type, name, logs }
@@ -154,6 +155,12 @@ const App = () => {
         }
         localStorage.setItem("spark-theme", theme);
     }, [theme]);
+    
+    // Zoom state mapping
+    React.useEffect(() => {
+        document.body.style.zoom = zoom;
+        localStorage.setItem("spark-zoom", zoom.toString());
+    }, [zoom]);
     
     // Control Action executors
     const sendControlAction = async (type, nodeId, name, action) => {
@@ -372,6 +379,23 @@ const App = () => {
                     </div>
                     
                     <div className="flex items-center gap-6">
+                        {/* Zoom Slider Control */}
+                        <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg border border-white/5 shadow-[2px_2px_4px_var(--shadow-dark),-2px_-2px_4px_var(--shadow-light)]">
+                            <span className="material-symbols-outlined text-[15px] text-on-surface-variant select-none">zoom_in</span>
+                            <input 
+                                type="range" 
+                                min="0.5" 
+                                max="1.5" 
+                                step="0.05" 
+                                value={zoom} 
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-20 h-1 bg-surface-container rounded-full appearance-none cursor-pointer accent-tertiary"
+                            />
+                            <span className="text-[9px] font-mono font-bold text-on-surface-variant w-8 text-right">
+                                {Math.round(zoom * 100)}%
+                            </span>
+                        </div>
+
                         {/* Theme Toggle Button */}
                         <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                                 className="w-10 h-10 rounded-lg flex items-center justify-center extruded-raised hover-lift bg-surface-container-high text-tertiary">

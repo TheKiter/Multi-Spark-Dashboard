@@ -3,190 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NVIDIA Spark Cluster Health & AI Diagnostics Control Panel</title>
+    <title>Antigravity Spark Cluster Telemetry</title>
+    
+    <!-- React & Babel Standalone CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              spaceDark: '#020617',
+              spaceCard: 'rgba(15, 23, 42, 0.45)',
+              glowOrange: '#ff9100',
+              glowViolet: '#8c00ff',
+              healthy: '#22c55e',
+              danger: '#ef4444',
+            },
+            fontFamily: {
+              sans: ['Fira Sans', 'sans-serif'],
+              mono: ['Fira Code', 'monospace']
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- GSAP CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts Fira Sans & Fira Code -->
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="dashboard-container">
-        <!-- Header -->
-        <header class="dashboard-header neumorphic-raised">
-            <div class="brand">
-                <span class="logo-accent"></span>
-                <h1>SPARK CLUSTER TELEMETRY</h1>
-            </div>
-            <div class="system-status">
-                <span class="status-indicator" id="status-dot"></span>
-                <span class="status-text" id="status-label">CONNECTING...</span>
-                <span class="timestamp-label" id="timestamp-clock">00:00:00</span>
-            </div>
-        </header>
-
-        <!-- Kernel & GPU Driver Alarm Banner -->
-        <div class="alert-banner alarm-banner neumorphic-recessed" id="kernel-alarm" style="display: none;">
-            <div class="alert-content">
-                <span class="alert-icon">🚨</span>
-                <div class="alert-text">
-                    <strong>CRITICAL KERNEL ALARM:</strong> <span id="kernel-alarm-desc">No events detected.</span>
-                </div>
-            </div>
-            <button class="action-btn-danger neumorphic-raised" onclick="clearKernelAlarm()">DISMISS ALARM</button>
-        </div>
-
-        <!-- Looping Alert Banner -->
-        <div class="alert-banner neumorphic-recessed" id="looping-alert">
-            <div class="alert-content">
-                <span class="alert-icon">⚠️</span>
-                <div class="alert-text">
-                    <strong>CRITICAL WARNING:</strong> AI Generator repetition index has dropped below threshold. Model appears stuck in an infinite generation loop!
-                </div>
-            </div>
-            <button class="action-btn-danger neumorphic-raised" onclick="restartVLLMService()">FORCE RESET vLLM</button>
-        </div>
-
-        <!-- Section: Cluster Node Cards (Dynamic) -->
-        <section class="section-container">
-            <h2 class="section-title">Spark Node Hardware Health</h2>
-            <div class="nodes-grid" id="nodes-container">
-                <!-- Dynamically populated via app.js -->
-                <div class="loading-placeholder">Querying Cluster Hardware State...</div>
-            </div>
-        </section>
-
-        <!-- Main Diagnostics & Jobs Grid -->
-        <main class="dashboard-grid">
-            
-            <!-- Col 1: Queue & Telemetry -->
-            <section class="grid-card neumorphic-raised" id="queue-card">
-                <h2>Queue & Cache Telemetry</h2>
-                <div class="metrics-row">
-                    <div class="metric-item neumorphic-recessed">
-                        <span class="metric-label">RUNNING REQUESTS</span>
-                        <span class="metric-value" id="running-reqs">0</span>
-                    </div>
-                    <div class="metric-item neumorphic-recessed">
-                        <span class="metric-label">QUEUED REQUESTS</span>
-                        <span class="metric-value" id="waiting-reqs">0</span>
-                    </div>
-                </div>
-
-                <!-- Dynamic model KV caches will be rendered here -->
-                <div id="vllm-caches-container" class="caches-stack">
-                    <!-- Dynamic vLLM bars -->
-                </div>
-
-                <div class="active-jobs-container">
-                    <span class="cache-title" style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Active Queue Jobs</span>
-                    <div class="jobs-list neumorphic-recessed" id="jobs-list">
-                        <div class="empty-state">No active queue tasks.</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Col 2: Loop Diagnostics -->
-            <section class="grid-card neumorphic-raised" id="diagnostics-card">
-                <h2>AI Repetition Diagnostics</h2>
-                <div class="gauge-outer">
-                    <div class="gauge-well neumorphic-recessed">
-                        <svg class="gauge-svg" viewBox="0 0 100 100">
-                            <defs>
-                                <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stop-color="var(--glow-violet)" />
-                                    <stop offset="100%" stop-color="var(--glow-orange)" />
-                                </linearGradient>
-                            </defs>
-                            <circle class="gauge-track" cx="50" cy="50" r="40"></circle>
-                            <circle class="gauge-fill" id="gauge-fill-circle" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
-                        </svg>
-                        <div class="gauge-center">
-                            <span class="gauge-num" id="repetition-score-val">100%</span>
-                            <span class="gauge-label">Uniqueness</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="status-summary neumorphic-recessed">
-                    <div class="status-indicator-block">
-                        <span class="status-title">Generation Status:</span>
-                        <span class="status-badge status-healthy" id="generator-status-badge">OPTIMAL</span>
-                    </div>
-                    <p class="status-desc" id="generator-status-desc">AI generation token n-grams reflect high entropy and correct language structure.</p>
-                </div>
-            </section>
-
-            <!-- Col 3: Memory Hogs across Cluster -->
-            <section class="grid-card neumorphic-raised" id="hogs-card">
-                <h2>Cluster Memory Hogs (Top RAM)</h2>
-                <div class="table-wrapper neumorphic-recessed">
-                    <table class="hogs-table">
-                        <thead>
-                            <tr>
-                                <th>Node</th>
-                                <th>Process Name</th>
-                                <th>PID</th>
-                                <th class="text-right">RAM %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="hogs-table-body">
-                            <tr>
-                                <td colspan="4" class="empty-state">Collecting process telemetry...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
-
-        <!-- Section: Dynamic Containers & Services Controls -->
-        <section class="section-container">
-            <h2 class="section-title">Application & Container Control Center</h2>
-            <div class="controls-grid" id="apps-container">
-                <!-- Dynamically populated via app.js -->
-                <div class="loading-placeholder">Loading Application Services Mapping...</div>
-            </div>
-        </section>
-
-        <!-- Live Terminal -->
-        <section class="live-terminal neumorphic-raised">
-            <div class="terminal-header">
-                <span class="terminal-dot red"></span>
-                <span class="terminal-dot yellow"></span>
-                <span class="terminal-dot green"></span>
-                <span class="terminal-title">Hermes Output Stream</span>
-            </div>
-            <div class="terminal-body">
-                <div class="terminal-block">
-                    <span class="terminal-prompt-label">USER PROMPT:</span>
-                    <div class="terminal-text neumorphic-recessed" id="terminal-prompt">Waiting for query...</div>
-                </div>
-                <div class="terminal-block">
-                    <span class="terminal-prompt-label">HERMES COMPLETION:</span>
-                    <div class="terminal-text response neumorphic-recessed" id="terminal-response">System idle.</div>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- Live Terminal Log Modal Overlay -->
-    <div class="log-modal" id="log-modal" style="display: none;">
-        <div class="log-modal-content neumorphic-raised">
-            <div class="log-modal-header">
-                <div class="modal-title">
-                    <span class="terminal-dot green"></span>
-                    <span id="log-modal-title-text">Container Logs</span>
-                </div>
-                <button class="close-modal-btn" onclick="closeLogModal()">×</button>
-            </div>
-            <div class="log-modal-body">
-                <pre class="log-terminal-output" id="log-terminal-output">Fetching log stream...</pre>
-            </div>
-            <div class="log-modal-footer">
-                <button class="action-btn neumorphic-raised" onclick="refreshActiveLogs()">RELOAD LOGS</button>
-                <button class="action-btn-danger neumorphic-raised" onclick="closeLogModal()">CLOSE WINDOW</button>
+<body class="bg-spaceDark text-slate-100 min-h-screen overflow-x-hidden antialiased relative">
+    <!-- Glowing background elements for spatial depth -->
+    <div class="bg-glow-sphere top-[-200px] left-[-200px]"></div>
+    <div class="bg-glow-sphere-2 bottom-[-100px] right-[-100px]"></div>
+    
+    <div id="root">
+        <!-- Root React mount point -->
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="text-center">
+                <div class="inline-block w-10 h-10 border-4 border-t-purple-600 border-r-transparent border-b-purple-600 border-l-transparent rounded-full animate-spin"></div>
+                <div class="mt-4 text-purple-400 font-semibold tracking-wider">LOADING ANTIGRAVITY TELEMETRY...</div>
             </div>
         </div>
     </div>
-
-    <script src="app.js" defer></script>
+    
+    <!-- React App Logic -->
+    <script type="text/babel" src="app.js"></script>
 </body>
 </html>

@@ -1,196 +1,10 @@
-// app.js
+/* app.js - Antigravity Spatial Telemetry Dashboard */
 
-const API_BASE = window.location.protocol === "file:" ? "http://100.82.55.92:8050" : "";
-const API_URL = `${API_BASE}/api/metrics`;
-const CONTROL_CONTAINER_URL = `${API_BASE}/api/control/container`;
-const CONTROL_SERVICE_URL = `${API_BASE}/api/control/service`;
-const CONTROL_LOGS_URL = `${API_BASE}/api/control/logs`;
-const CONTROL_CANCEL_TASK_URL = `${API_BASE}/api/control/task/cancel`;
-const POLL_INTERVAL = 2500; // 2.5 seconds
-
-// Heatmap configuration
-const GRID_COLS = 16;
-const GRID_ROWS = 8;
-const CELL_SIZE = 10;
-const CELL_GAP = 1;
-
-// Global tracking variables
-const gpuGrids = {};
-let activeLogTarget = null; // { node_id, type, name }
-let logPollIntervalId = null;
-
-function getOrCreateGrid(nodeId) {
-    if (!gpuGrids[nodeId]) {
-        let grid = [];
-        for (let r = 0; r < GRID_ROWS; r++) {
-            grid[r] = [];
-            for (let c = 0; c < GRID_COLS; c++) {
-                const distToCenter = Math.sqrt(Math.pow(r - GRID_ROWS/2, 2) + Math.pow(c - GRID_COLS/2, 2));
-                const baseTemp = Math.max(35, 75 - distToCenter * 8);
-                grid[r][c] = baseTemp;
-            }
-        }
-        gpuGrids[nodeId] = grid;
-    }
-    return gpuGrids[nodeId];
-}
-
-function updateHeatmap(canvas, gridState, coreTemp, utilization) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas
-    ctx.fillStyle = '#19171e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    const activityFactor = utilization / 100.0;
-    
-    for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-            const targetTemp = gridState[r][c] + (Math.random() - 0.5) * 4 + (coreTemp - 45) * activityFactor;
-            
-            let color = 'rgb(30, 30, 45)'; // Off state
-            if (coreTemp > 0) {
-                const tempNormalized = Math.min(1.0, Math.max(0.0, (targetTemp - 30) / 60)); // 30C to 90C
-                
-                let red, green, blue;
-                if (tempNormalized < 0.5) {
-                    const t = tempNormalized * 2;
-                    red = Math.round(30 + t * 100);
-                    green = Math.round(30 - t * 15);
-                    blue = Math.round(100 + t * 50);
-                } else {
-                    const t = (tempNormalized - 0.5) * 2;
-                    red = Math.round(130 + t * 125);
-                    green = Math.round(15 + t * 90);
-                    blue = Math.round(150 - t * 130);
-                }
-                color = `rgb(${red}, ${green}, ${blue})`;
-            }
-            
-            ctx.fillStyle = color;
-            ctx.fillRect(
-                c * (CELL_SIZE + CELL_GAP),
-                r * (CELL_SIZE + CELL_GAP),
-                CELL_SIZE,
-                CELL_SIZE
-            );
-        }
-    }
-}
-
-function formatBytes(bytes) {
-    if (bytes === 0) return '0B';
-    const k = 1024;
-    const sizes = ['KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
-}
-
-function formatTokenCount(num) {
-    if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + "M";
-    if (num >= 1_000) return (num / 1_000).toFixed(1) + "k";
-    return num;
-}
-
-function updateClock() {
-    const clock = document.getElementById("timestamp-clock");
-    if (clock) {
-        const now = new Date();
-        clock.textContent = now.toTimeString().split(' ')[0];
-    }
-}
-
-// Global dismiss state for alarms
-let dismissedAlarms = new Set();
-
-function clearKernelAlarm() {
-    document.getElementById("kernel-alarm").style.display = "none";
-    // Mark active alarm texts as dismissed so they don't pop back up immediately
-    const text = document.getElementById("kernel-alarm-desc").textContent;
-    dismissedAlarms.add(text);
-}
-
-async function fetchTelemetry() {
-    try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error("API returned non-200 status");
-        
-        const data = await response.json();
-        
-        // Update connection status
-        document.getElementById("status-dot").className = "status-indicator online";
-        document.getElementById("status-label").textContent = "CLUSTER ONLINE";
-        
-        // Render Nodes Hardware Health dynamically
-        renderHardwareCards(data.nodes);
-        
-        // Render Cluster Memory Hogs table
-        renderMemoryHogs(data.nodes);
-        
-        // Render Docker Containers Control Center
-        renderControlCenter(data.nodes);
-        
-        // Update vLLM queue and cache metrics
-        updateQueueMetrics(data.queue, data.vllm);
-        
-        // Update kernel/driver OOM and Xid logs
-        checkKernelAlarms(data.nodes);
-        
-        // Repetition diagnostics (stuck loop check from SQLite on local primary)
-        // Find if local primary has chat logs
-        let chatLooping = false;
-        let repScore = 1.0;
-        let latestPrompt = "Waiting for query...";
-        let latestResponse = "System idle.";
-        
-        for (const nid in data.nodes) {
-            const n = data.nodes[nid];
-            // If the chat SQLite diagnostics were captured on the host
-            if (n.chat_loop_diagnostics) {
-                chatLooping = n.chat_loop_diagnostics.is_looping;
-                repScore = n.chat_loop_diagnostics.repetition_score;
-                latestPrompt = n.chat_loop_diagnostics.latest_prompt || latestPrompt;
-                latestResponse = n.chat_loop_diagnostics.latest_response || latestResponse;
-                break;
-            }
-        }
-        
-        // Update repetition dials
-        const repPercentage = Math.round(repScore * 100);
-        document.getElementById("repetition-score-val").textContent = `${repPercentage}%`;
-        const circle = document.getElementById("gauge-fill-circle");
-        const radius = circle.r.baseVal.value;
-        const circumference = 2 * Math.PI * radius; // 251.2
-        const offset = circumference * (1.0 - repScore);
-        circle.style.strokeDashoffset = offset;
-        
-        // Loop Warning Banner
-        const alertBanner = document.getElementById("looping-alert");
-        const badge = document.getElementById("generator-status-badge");
-        const desc = document.getElementById("generator-status-desc");
-        if (chatLooping) {
-            alertBanner.style.display = "flex";
-            badge.textContent = "LOOP ALERT";
-            badge.className = "status-badge status-warning";
-            desc.textContent = `CRITICAL: Repetitive sequence detected (Uniqueness: ${repPercentage}%). The model appears stuck in a loop.`;
-        } else {
-            alertBanner.style.display = "none";
-            badge.textContent = "OPTIMAL";
-            badge.className = "status-badge status-healthy";
-            desc.textContent = "AI generation token n-grams reflect high entropy and correct language structure.";
-        }
-        
-        // Update Live Output stream terminal
-        document.getElementById("terminal-prompt").textContent = latestPrompt;
-        document.getElementById("terminal-response").textContent = latestResponse;
-        
-    } catch (error) {
-        document.getElementById("status-dot").className = "status-indicator offline";
-        document.getElementById("status-label").textContent = "CLUSTER OFFLINE";
-        console.error("Telemetry fetch error:", error);
-    }
-}
+const API_URL = "/api/metrics";
+const CONTROL_CONTAINER_URL = "/api/control/container";
+const CONTROL_SERVICE_URL = "/api/control/service";
+const CONTROL_LOGS_URL = "/api/control/logs";
+const CONTROL_TASK_CANCEL_URL = "/api/control/task/cancel";
 
 // Visual dynamic color and radial dial rendering helpers
 function getGoodBadColor(percentage) {
@@ -207,573 +21,743 @@ function getStrongWeakColor(percentage) {
     return `hsl(${hue}, 95%, 55%)`;
 }
 
-function makeCustomDial(value, maxVal, label, suffix, colorFn) {
-    const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
-    const color = colorFn(perc);
-    return `
-        <div class="gauge-item">
-            <div class="circular-gauge">
-                <svg viewBox="0 0 36 36" class="circular-chart">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="circle-fill" stroke-dasharray="${perc}, 100" stroke="${color}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                </svg>
-                <div class="gauge-center-text font-tabular">${value}${suffix}</div>
-            </div>
-            <span class="gauge-label">${label}</span>
-        </div>
-    `;
-}
-
-function makeDial(value, label, colorFn) {
-    return makeCustomDial(value, 100, label, "%", colorFn);
-}
-
-function renderHardwareCards(nodes) {
-    const container = document.getElementById("nodes-container");
-    if (!container) return;
-    
-    let html = "";
-    
-    for (const nodeId in nodes) {
-        const node = nodes[nodeId];
-        if (!node.online) {
-            html += `
-                <div class="node-card neumorphic-raised offline">
-                    <div class="node-card-header">
-                        <h3>${nodeId.replace("spark-", "")}</h3>
-                        <span class="node-badge offline">OFFLINE</span>
-                    </div>
-                    <div class="node-body">
-                        <p class="offline-placeholder">Failed to connect to host over Tailscale/SSH</p>
-                    </div>
-                </div>
-            `;
-            continue;
-        }
-        
-        const ramUsedGB = (node.ram.used / 1024).toFixed(1);
-        const ramTotalGB = (node.ram.total / 1024).toFixed(1);
-        const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
-        
-        const swapTotal = node.ram.swap_total || 0;
-        const swapUsed = node.ram.swap_used || 0;
-        const swapPerc = swapTotal ? Math.round((swapUsed / swapTotal) * 100) : 0;
-        const swapUsedGB = (swapUsed / 1024).toFixed(1);
-        const swapTotalGB = (swapTotal / 1024).toFixed(1);
-        
-        const iowaitVal = node.iowait || 0.0;
-        const readRate = node.disk.read_rate || 0.0;
-        const writeRate = node.disk.write_rate || 0.0;
-        
-        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
-        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
-        
-        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
-        const psiFull = (node.psi_memory && node.psi_memory.full_avg10) || 0.0;
-        
-        function formatRate(kbSec) {
-            if (kbSec >= 1024) return `${(kbSec / 1024).toFixed(1)} MB/s`;
-            return `${kbSec.toFixed(0)} KB/s`;
-        }
-        
-        let pressureBadges = "";
-        if (psiSome > 10 || psiFull > 2) {
-            pressureBadges += `<span class="gpu-badge status-danger" style="margin-left: 8px;">⚠️ Mem Pressure (PSI: ${psiSome}%)</span>`;
-        }
-        if (swapIn > 0.5 || swapOut > 0.5) {
-            pressureBadges += `<span class="gpu-badge status-warning" style="margin-left: 8px; animation: pulse 1.5s infinite;">🚨 Swapping (In: ${swapIn}/s, Out: ${swapOut}/s)</span>`;
-        }
-        if (iowaitVal > 8) {
-            pressureBadges += `<span class="gpu-badge status-danger" style="margin-left: 8px;">⚠️ Disk Thrashing (IO Wait: ${iowaitVal}%)</span>`;
-        }
-        
-        let gpuHtml = "";
-        if (node.gpu.online) {
-            const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
-            const vramUsedGB = (node.gpu.mem_used / 1024).toFixed(1);
-            const vramTotalGB = (node.gpu.mem_total / 1024).toFixed(1);
-            
-            let throttleBadge = "";
-            if (node.gpu.throttle_reason && node.gpu.throttle_reason !== "None") {
-                throttleBadge = `<span class="gpu-badge status-warning" style="margin-left: 8px;">🚨 ${node.gpu.throttle_reason}</span>`;
-            }
-            
-            gpuHtml = `
-                <div class="gpu-subsection neumorphic-recessed">
-                    <div class="gpu-header">
-                        <h4>GPU ${throttleBadge}</h4>
-                        <span class="gpu-badge online">ONLINE</span>
-                    </div>
-                    <div class="gpu-gauges-row">
-                        ${makeDial(node.gpu.gpu_util, 'GPU LOAD', getGoodBadColor)}
-                        ${makeCustomDial(node.gpu.temp, 100, 'TEMP', '°C', getGoodBadColor)}
-                        ${makeCustomDial(node.gpu.power_draw, node.gpu.power_limit || 300, 'POWER', 'W', getStrongWeakColor)}
-                        ${makeDial(vramPerc, 'VRAM', getStrongWeakColor)}
-                    </div>
-                    <div class="gpu-vram-label font-tabular" style="text-align: center; font-size: 0.72rem; margin-top: 6px; color: var(--text-secondary);">
-                        VRAM: <span class="mono-num highlight-val">${vramUsedGB} GB / ${vramTotalGB} GB</span>
-                    </div>
-                </div>
-            `;
-        } else {
-            gpuHtml = `
-                <div class="gpu-subsection neumorphic-recessed offline">
-                    <div class="gpu-header">
-                        <h4>GPU</h4>
-                        <span class="gpu-badge offline">NO GPU</span>
-                    </div>
-                    <p class="no-gpu-text">No active NVIDIA hardware detected or driver not loaded.</p>
-                </div>
-            `;
-        }
-        
-        html += `
-            <div class="node-card neumorphic-raised">
-                <div class="node-card-header">
-                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <h3>${nodeId.replace("spark-", "")}</h3>
-                        ${pressureBadges}
-                    </div>
-                    <span class="node-badge online">ONLINE</span>
-                </div>
-                <div class="node-body">
-                    <!-- Circular Gauges Grid -->
-                    <div class="node-gauges-row">
-                        ${makeDial(node.cpu, 'CPU', getGoodBadColor)}
-                        ${makeDial(ramPerc, 'RAM', getGoodBadColor)}
-                        ${swapTotal > 0 ? makeDial(swapPerc, 'Swap', getGoodBadColor) : ""}
-                        ${makeDial(node.disk.perc, 'Disk', getGoodBadColor)}
-                    </div>
-                    
-                    <!-- Text Details & Stats -->
-                    <div class="sys-metrics-mini">
-                        <div class="mini-metrics-grid">
-                            <div>CPU Wait: <span class="mono-num highlight-val">${iowaitVal}%</span></div>
-                            <div>Memory PSI: <span class="mono-num highlight-val">${psiSome}%</span></div>
-                            <div>RAM: <span class="mono-num font-tabular">${ramUsedGB}GB / ${ramTotalGB}GB</span></div>
-                            ${swapTotal > 0 ? `<div>Swap: <span class="mono-num font-tabular">${swapUsedGB}GB / ${swapTotalGB}GB</span></div>` : ""}
-                        </div>
-                        
-                        <div class="disk-io-activity">
-                            <span>Disk Read: <span class="mono-num">${formatRate(readRate)}</span></span>
-                            <span>Disk Write: <span class="mono-num">${formatRate(writeRate)}</span></span>
-                        </div>
-                    </div>
-                    
-                    <!-- GPU Stats -->
-                    ${gpuHtml}
-                </div>
-            </div>
-        `;
-    }
-    
-    container.innerHTML = html;
-    
-    // Animate and draw canvases
-    for (const nodeId in nodes) {
-        const node = nodes[nodeId];
-        if (node.online && node.gpu.online) {
-            const canvas = document.getElementById(`canvas-${nodeId}`);
-            if (canvas) {
-                const grid = getOrCreateGrid(nodeId);
-                updateHeatmap(canvas, grid, node.gpu.temp, node.gpu.gpu_util);
-            }
-        }
-    }
-}
-
-function renderMemoryHogs(nodes) {
-    const tbody = document.getElementById("hogs-table-body");
-    if (!tbody) return;
-    
-    let rowsHtml = "";
-    let allHogs = [];
-    
-    for (const nodeId in nodes) {
-        const node = nodes[nodeId];
-        if (node.online && node.hogs && node.hogs.length > 0) {
-            node.hogs.forEach(h => {
-                allHogs.push({
-                    nodeId: nodeId,
-                    name: h.name,
-                    pid: h.pid,
-                    mem: h.mem
-                });
-            });
-        }
-    }
-    
-    // Sort hogs globally by RAM usage descending
-    allHogs.sort((a, b) => b.mem - a.mem);
-    
-    if (allHogs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No process data available.</td></tr>`;
-        return;
-    }
-    
-    // Show top 8 hogs
-    allHogs.slice(0, 8).forEach(h => {
-        rowsHtml += `
-            <tr>
-                <td><span class="node-label-small">${h.nodeId.replace("spark-", "")}</span></td>
-                <td><span class="mono-text">${h.name}</span></td>
-                <td class="font-tabular font-dim">${h.pid}</td>
-                <td class="text-right font-tabular highlight-val">${h.mem}%</td>
-            </tr>
-        `;
-    });
-    
-    tbody.innerHTML = rowsHtml;
-}
-
-function renderControlCenter(nodes) {
-    const container = document.getElementById("apps-container");
-    if (!container) return;
-    
-    let html = "";
-    
-    for (const nodeId in nodes) {
-        const node = nodes[nodeId];
-        if (!node.online) continue;
-        
-        let dockerCards = "";
-        if (node.dockers && node.dockers.length > 0) {
-            node.dockers.forEach(d => {
-                const ramUsed = d.mem_usage.includes('/') ? d.mem_usage.split('/')[0].trim() : d.mem_usage;
-                const totalRam = d.mem_usage.includes('/') ? d.mem_usage.split('/')[1].trim() : '';
-                const ramLabel = totalRam ? `${ramUsed} / ${totalRam}` : ramUsed;
-                
-                dockerCards += `
-                    <div class="docker-card neumorphic-recessed">
-                        <div class="docker-card-header">
-                            <span class="docker-app-name" title="${d.name}">${d.name}</span>
-                            <span class="status-indicator-dot ${d.state === "running" ? "online" : "offline"}"></span>
-                        </div>
-                        <div class="docker-card-body">
-                            <div class="docker-meta">
-                                <span class="docker-image" title="${d.image}">${d.image.split(':')[0]}</span>
-                                <span class="docker-status font-dim">${d.status}</span>
-                            </div>
-                            ${d.state === "running" ? `
-                                <div class="docker-resource-bars">
-                                    <div class="resource-bar-row">
-                                        <span>CPU: <span class="mono-num">${d.cpu_perc}</span></span>
-                                        <span>RAM: <span class="mono-num">${ramLabel}</span></span>
-                                    </div>
-                                    <div class="mini-bar-well" style="margin-top: 4px;">
-                                        <div class="mini-bar-fill" style="width: ${d.mem_perc}; background: var(--glow-violet);"></div>
-                                    </div>
-                                </div>
-                            ` : `
-                                <div class="docker-offline-text">Container Stopped</div>
-                            `}
-                        </div>
-                        <div class="docker-card-footer">
-                            <button class="action-btn log-btn" onclick="openLogStream('${nodeId}', 'docker', '${d.name}')">LOGS</button>
-                            <button class="action-btn restart-btn" onclick="sendControlAction('container', '${nodeId}', '${d.name}', 'restart')">RESTART</button>
-                            ${d.state === "running" 
-                              ? `<button class="action-btn-danger stop-btn" onclick="sendControlAction('container', '${nodeId}', '${d.name}', 'stop')">KILL</button>`
-                              : `<button class="action-btn start-btn" onclick="sendControlAction('container', '${nodeId}', '${d.name}', 'start')" style="color:var(--healthy)">START</button>`
-                            }
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            dockerCards = `<div class="empty-state-small">No Docker containers running or loaded.</div>`;
-        }
-
-        let serviceCards = "";
-        const targetServices = ["ollama", "vllm", "hermes-gateway", "hermes-studio"];
-        if (nodeId === "spark-8828" || nodeId === "spark-1dd6") {
-            targetServices.forEach(s => {
-                serviceCards += `
-                    <div class="service-card neumorphic-recessed">
-                        <div class="service-card-header">
-                            <span class="service-name">${s}.service</span>
-                            <span class="status-indicator-dot online"></span>
-                        </div>
-                        <div class="service-card-body">
-                            <span class="service-desc font-dim">Systemd daemon</span>
-                        </div>
-                        <div class="service-card-footer">
-                            <button class="action-btn log-btn" onclick="openLogStream('${nodeId}', 'service', '${s}')">LOGS</button>
-                            <button class="action-btn restart-btn" onclick="sendControlAction('service', '${nodeId}', '${s}', 'restart')">RESTART</button>
-                            <button class="action-btn-danger stop-btn" onclick="sendControlAction('service', '${nodeId}', '${s}', 'stop')">KILL</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        
-        html += `
-            <div class="node-control-card neumorphic-raised">
-                <div class="control-card-header">
-                    <h3>${nodeId.replace("spark-", "")} App Controls</h3>
-                </div>
-                <div class="control-card-body">
-                    <div class="subset-title">Docker Containers</div>
-                    <div class="docker-cards-grid">
-                        ${dockerCards}
-                    </div>
-                    
-                    ${serviceCards ? `
-                        <div class="subset-title" style="margin-top:24px;">System Services</div>
-                        <div class="service-cards-grid">
-                            ${serviceCards}
-                        </div>
-                    ` : ""}
-                </div>
-            </div>
-        `;
-    }
-    
-    container.innerHTML = html || `<div class="empty-state">No active nodes to manage apps.</div>`;
-}
-
-function updateQueueMetrics(queue, vllm) {
-    // 1. Update queue metrics numbers
-    const activeTasksCount = queue.active ? queue.active.length : 0;
-    const queuedTasksCount = queue.completed ? queue.completed.filter(t => t.status === "queued" || t.status === "waiting").length : 0; // wait, queued matches active tasks waiting
-    
-    let totalWaiting = 0;
-    let totalRunning = 0;
-    
-    // Look into vllm metrics
-    for (const m in vllm) {
-        totalWaiting += vllm[m].waiting_requests || 0;
-        totalRunning += vllm[m].running_requests || 0;
-    }
-    
-    document.getElementById("running-reqs").textContent = totalRunning || activeTasksCount;
-    document.getElementById("waiting-reqs").textContent = totalWaiting || queuedTasksCount;
-    
-    // 2. Render dynamic vLLM instances KV caches
-    const cachesContainer = document.getElementById("vllm-caches-container");
-    if (cachesContainer) {
-        let cacheHtml = "";
-        for (const modelName in vllm) {
-            const metrics = vllm[modelName];
-            const cachePerc = metrics.kv_cache_usage || 0.0;
-            const statusText = metrics.online ? `${cachePerc.toFixed(1)}%` : "OFFLINE";
-            const barWidth = metrics.online ? `${cachePerc}%` : "0%";
-            
-            cacheHtml += `
-                <div class="cache-progress-container" style="margin-top: 10px;">
-                    <div class="cache-labels">
-                        <span class="cache-title">${modelName} Cache</span>
-                        <span class="cache-perc" style="color: ${metrics.online ? 'var(--glow-orange)' : 'var(--danger)'}">${statusText}</span>
-                    </div>
-                    <div class="progress-bar-well neumorphic-recessed">
-                        <div class="progress-bar-fill" style="width: ${barWidth}; background: linear-gradient(90deg, var(--glow-violet), var(--glow-orange));"></div>
-                    </div>
-                </div>
-            `;
-        }
-        if (Object.keys(vllm).length === 0) {
-            cacheHtml = `<div class="empty-state-small">vLLM instances offline.</div>`;
-        }
-        cachesContainer.innerHTML = cacheHtml;
-    }
-    
-    // 3. Render active queue tasks with cancel button
-    const jobsList = document.getElementById("jobs-list");
-    if (jobsList) {
-        let jobsHtml = "";
-        if (queue.active && queue.active.length > 0) {
-            queue.active.forEach(j => {
-                // Task structure from FastAPI Control layer task.to_dict()
-                const model = j.model || "Hermes-70B";
-                const taskId = j.task_id || j.id;
-                const status = j.status || "processing";
-                
-                jobsHtml += `
-                    <div class="job-item neumorphic-recessed">
-                        <div class="job-details">
-                            <span class="job-model">${model}</span>
-                            <span class="job-id font-dim">ID: ${taskId.substring(0, 8)}...</span>
-                            <span class="job-status font-dim">[${status.toUpperCase()}]</span>
-                        </div>
-                        <button class="cancel-job-btn neumorphic-raised" onclick="cancelQueueTask('${taskId}')">CANCEL</button>
-                    </div>
-                `;
-            });
-        } else {
-            jobsHtml = `<div class="empty-state">No active queue tasks.</div>`;
-        }
-        jobsList.innerHTML = jobsHtml;
-    }
-}
-
-function checkKernelAlarms(nodes) {
-    const alarmBanner = document.getElementById("kernel-alarm");
-    const alarmDesc = document.getElementById("kernel-alarm-desc");
-    if (!alarmBanner) return;
-    
-    let activeAlarm = null;
-    
-    for (const nodeId in nodes) {
-        const node = nodes[nodeId];
-        if (node.online && node.oom_events && node.oom_events.length > 0) {
-            // Check the latest event
-            const latest = node.oom_events[node.oom_events.length - 1];
-            const logText = `[${nodeId}] ${latest.text}`;
-            
-            // Check if user already dismissed this exact alarm text
-            if (!dismissedAlarms.has(logText)) {
-                activeAlarm = {
-                    node: nodeId,
-                    type: latest.type, // oom or xid
-                    text: latest.text,
-                    fullText: logText
-                };
-                break; // Show the first new alarm found
-            }
-        }
-    }
-    
-    if (activeAlarm) {
-        alarmBanner.style.display = "flex";
-        
-        let typeLabel = activeAlarm.type === "xid" ? "NVIDIA Driver Xid Error" : "System RAM Out-Of-Memory (OOM)";
-        alarmDesc.innerHTML = `<span style="color:var(--danger); font-weight:800;">${typeLabel}</span> on node <strong>${activeAlarm.node.replace("spark-", "")}</strong>: <br><code style="font-family:'Fira Code'; font-size:0.85rem; color:#ffd8bf">${activeAlarm.text}</code>`;
-    } else {
-        alarmBanner.style.display = "none";
-    }
-}
-
-async function sendControlAction(type, nodeId, name, action) {
-    // type: container or service
-    const verb = action === "stop" ? "KILL/STOP" : (action === "restart" ? "RESTART" : "START");
-    if (!confirm(`Are you sure you want to ${verb} the ${type} "${name}" on node "${nodeId}"?`)) {
-        return;
-    }
-    
-    const url = type === "container" ? CONTROL_CONTAINER_URL : CONTROL_SERVICE_URL;
-    const body = type === "container" 
-        ? { node_id: nodeId, container_name: name, action: action }
-        : { node_id: nodeId, service_name: name, action: action };
-        
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-        });
-        
-        const resData = await response.json();
-        if (response.ok) {
-            alert(`Signal sent successfully! Result:\n${resData.result || "Command executed."}`);
-            fetchTelemetry();
-        } else {
-            alert(`Error: ${resData.error || "Failed to execute control action."}`);
-        }
-    } catch (e) {
-        alert("Failed to connect to backend telemetry service.");
-        console.error(e);
-    }
-}
-
-async function cancelQueueTask(taskId) {
-    if (!confirm(`Are you sure you want to cancel and abort active job "${taskId}"?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(CONTROL_CANCEL_TASK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ task_id: taskId })
-        });
-        
-        const resData = await response.json();
-        if (response.ok) {
-            alert("Cancellation command sent to queue router.");
-            fetchTelemetry();
-        } else {
-            alert(`Error: ${resData.error || "Failed to cancel task."}`);
-        }
-    } catch (e) {
-        alert("Failed to connect to telemetry service.");
-    }
-}
-
-// Log modal routines
-function openLogStream(nodeId, type, name) {
-    activeLogTarget = { node_id: nodeId, type: type, name: name };
-    
-    const modal = document.getElementById("log-modal");
-    const title = document.getElementById("log-modal-title-text");
-    const term = document.getElementById("log-terminal-output");
-    
-    title.textContent = `[${nodeId}] ${type.toUpperCase()}: ${name} Logs`;
-    term.textContent = "Connecting to log stream...";
-    modal.style.display = "flex";
-    
-    // Fetch logs immediately
-    fetchLogs();
-    
-    // Poll logs every 3 seconds while open
-    if (logPollIntervalId) clearInterval(logPollIntervalId);
-    logPollIntervalId = setInterval(fetchLogs, 3000);
-}
-
-async function fetchLogs() {
-    if (!activeLogTarget) return;
-    
-    const term = document.getElementById("log-terminal-output");
-    const { node_id, type, name } = activeLogTarget;
-    
-    try {
-        const url = `${CONTROL_LOGS_URL}?node_id=${encodeURIComponent(node_id)}&type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (response.ok) {
-            term.textContent = data.logs || "Empty log output.";
-            // Scroll to bottom
-            term.scrollTop = term.scrollHeight;
-        } else {
-            term.textContent = `Error loading logs: ${data.error || "Unknown telemetry error."}`;
-        }
-    } catch (e) {
-        term.textContent = "Error: Failed to connect to log telemetry API endpoint.";
-    }
-}
-
-function refreshActiveLogs() {
-    fetchLogs();
-}
-
-function closeLogModal() {
-    document.getElementById("log-modal").style.display = "none";
-    activeLogTarget = null;
-    if (logPollIntervalId) {
-        clearInterval(logPollIntervalId);
-        logPollIntervalId = null;
-    }
-}
-
-async function restartVLLMService() {
-    // Legacy support for loop reset button calling primary restart endpoint
-    if (!confirm("Are you sure you want to force restart the vLLM service on the cluster? This will stop active inference for about 2 minutes.")) {
-        return;
-    }
-    
-    // Find endpoint host and trigger service restart for vllm
-    sendControlAction("service", "spark-1dd6", "vllm", "restart");
-}
-
-// Close modal if clicking outside content
-window.onclick = function(event) {
-    const modal = document.getElementById("log-modal");
-    if (event.target === modal) {
-        closeLogModal();
-    }
+// Inline SVG Icon components for standalone stability
+const Icons = {
+    Cpu: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <rect width="16" height="16" x="4" y="4" rx="2"/>
+            <path d="M9 20v2M15 20v2M20 9h2M20 15h2M15 2v2M9 2v2M4 9H2M4 15H2M9 9h6v6H9z"/>
+        </svg>
+    ),
+    Database: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+        </svg>
+    ),
+    HardDrive: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <rect width="20" height="8" x="2" y="3" rx="2"/>
+            <rect width="20" height="8" x="2" y="13" rx="2"/>
+            <path d="M6 7h.01M6 17h.01"/>
+            <path d="M20 7h.01M20 17h.01"/>
+        </svg>
+    ),
+    Zap: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+    ),
+    Thermometer: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+        </svg>
+    ),
+    Terminal: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="m5 17 5-5-5-5M12 19h8"/>
+        </svg>
+    ),
+    Play: () => (
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+    ),
+    Square: () => (
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+        </svg>
+    ),
+    RefreshCw: () => (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5M3 3v5h5"/>
+        </svg>
+    ),
+    AlertTriangle: () => (
+        <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" x2="12" y1="9" y2="13"/>
+            <line x1="12" x2="12.01" y1="17" y2="17"/>
+        </svg>
+    ),
+    Server: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+            <line x1="6" x2="6.01" y1="6" y2="6"/>
+            <line x1="6" x2="6.01" y1="18" y2="18"/>
+        </svg>
+    )
 };
 
-// Initial triggers
-updateClock();
-setInterval(updateClock, 1000);
-fetchTelemetry();
-setInterval(fetchTelemetry, POLL_INTERVAL);
+// Dial Gauge Component
+const CircularGauge = ({ value, maxVal = 100, label, suffix = "%", colorFn }) => {
+    const perc = Math.max(0, Math.min(100, Math.round((value / maxVal) * 100)));
+    const color = colorFn(perc);
+    
+    return (
+        <div className="gauge-item flex flex-col items-center gap-1.5 flex-1">
+            <div className="circular-gauge relative w-16 h-16">
+                <svg viewBox="0 0 36 36" className="circular-chart w-full h-full">
+                    <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path className="circle-fill" 
+                          strokeDasharray={`${perc}, 100`} 
+                          stroke={color} 
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                </svg>
+                <div className="gauge-center-text absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold font-mono text-slate-200">
+                    {value}{suffix}
+                </div>
+            </div>
+            <span className="gauge-label text-[9px] font-bold text-slate-400 tracking-wider uppercase">{label}</span>
+        </div>
+    );
+};
+
+// Main App component
+const App = () => {
+    const [metrics, setMetrics] = React.useState(null);
+    const [is3d, setIs3d] = React.useState(true);
+    const [logModal, setLogModal] = React.useState(null); // { node_id, type, name, logs }
+    const [dismissedAlarms, setDismissedAlarms] = React.useState(new Set());
+    const [clock, setClock] = React.useState("00:00:00");
+    const [isUpdating, setIsUpdating] = React.useState(false);
+    
+    const cardGridRef = React.useRef(null);
+    const logIntervalRef = React.useRef(null);
+
+    // Clock lifecycle
+    React.useEffect(() => {
+        const timer = setInterval(() => {
+            const now = new Date();
+            setClock(now.toTimeString().split(' ')[0]);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Telemetry fetcher
+    const fetchTelemetry = async () => {
+        try {
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error("API Offline");
+            const data = await res.json();
+            setMetrics(data);
+        } catch (err) {
+            console.error("Telemetry fetch error:", err);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchTelemetry();
+        const poll = setInterval(fetchTelemetry, 2500);
+        return () => clearInterval(poll);
+    }, []);
+
+    // Staggered entry animation on load
+    React.useEffect(() => {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (metrics && cardGridRef.current && !prefersReducedMotion) {
+            const cards = cardGridRef.current.querySelectorAll('.gsap-card');
+            if (cards.length > 0) {
+                gsap.fromTo(cards, 
+                    { opacity: 0, y: 50, rotateX: 15, scale: 0.95 },
+                    { opacity: 1, y: 0, rotateX: 0, scale: 1, duration: 0.8, stagger: 0.08, ease: "power2.out" }
+                );
+            }
+        }
+    }, [metrics === null]); // runs only when metrics shifts from null to loaded
+
+    // Logs Poller
+    React.useEffect(() => {
+        if (logModal) {
+            const pollLogs = async () => {
+                try {
+                    const res = await fetch(`${CONTROL_LOGS_URL}?node_id=${logModal.node_id}&type=${logModal.type}&name=${logModal.name}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setLogModal(prev => prev ? { ...prev, logs: data.logs } : null);
+                    }
+                } catch (err) {
+                    console.error("Logs error:", err);
+                }
+            };
+            pollLogs();
+            logIntervalRef.current = setInterval(pollLogs, 2000);
+        } else {
+            if (logIntervalRef.current) {
+                clearInterval(logIntervalRef.current);
+                logIntervalRef.current = null;
+            }
+        }
+        return () => {
+            if (logIntervalRef.current) clearInterval(logIntervalRef.current);
+        };
+    }, [logModal?.node_id, logModal?.type, logModal?.name]);
+
+    // Handle Control action
+    const sendControlAction = async (type, nodeId, name, action) => {
+        const verb = action === "stop" ? "KILL/STOP" : (action === "restart" ? "RESTART" : "START");
+        if (!confirm(`Are you sure you want to ${verb} the ${type} "${name}" on node "${nodeId.replace("spark-", "")}"?`)) {
+            return;
+        }
+        
+        setIsUpdating(true);
+        const url = type === "container" ? CONTROL_CONTAINER_URL : CONTROL_SERVICE_URL;
+        const body = type === "container" 
+            ? { node_id: nodeId, container_name: name, action: action }
+            : { node_id: nodeId, service_name: name, action: action };
+            
+        try {
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                await fetchTelemetry();
+            } else {
+                alert(`Action failed: ${res.statusText}`);
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    // Cancel FastAPI Task
+    const cancelQueueTask = async (taskId) => {
+        if (!confirm(`Are you sure you want to cancel FastAPI Queue Job: ${taskId}?`)) {
+            return;
+        }
+        
+        setIsUpdating(true);
+        try {
+            const res = await fetch(CONTROL_TASK_CANCEL_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ task_id: taskId })
+            });
+            if (res.ok) {
+                await fetchTelemetry();
+            } else {
+                alert("Cancellation failed.");
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    // Helper to clear alarms
+    const dismissAlarm = (logText) => {
+        setDismissedAlarms(prev => {
+            const updated = new Set(prev);
+            updated.add(logText);
+            return updated;
+        });
+    };
+
+    if (!metrics) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="inline-block w-10 h-10 border-4 border-t-purple-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
+                    <div className="mt-4 text-purple-400 font-semibold tracking-wider">SYNCING WITH CLUSTER METRICS...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Extract alarm events
+    let activeAlarm = null;
+    for (const nid in metrics.nodes) {
+        const n = metrics.nodes[nid];
+        if (n.online && n.oom_events && n.oom_events.length > 0) {
+            const latest = n.oom_events[n.oom_events.length - 1];
+            const logText = `[${nid}] ${latest.text}`;
+            if (!dismissedAlarms.has(logText)) {
+                activeAlarm = { node: nid, type: latest.type, text: latest.text, logText };
+                break;
+            }
+        }
+    }
+
+    // Extract Loop alert
+    let loopAlert = null;
+    for (const nid in metrics.nodes) {
+        const n = metrics.nodes[nid];
+        if (n.online && n.chat_loop_diagnostics && n.chat_loop_diagnostics.is_looping) {
+            loopAlert = {
+                node: nid,
+                score: Math.round(n.chat_loop_diagnostics.repetition_score * 100),
+                prompt: n.chat_loop_diagnostics.latest_prompt,
+                response: n.chat_loop_diagnostics.latest_response
+            };
+            break;
+        }
+    }
+
+    // Sort global memory hogs
+    let globalHogs = [];
+    for (const nid in metrics.nodes) {
+        const n = metrics.nodes[nid];
+        if (n.online && n.hogs) {
+            n.hogs.forEach(h => {
+                globalHogs.push({ nodeId: nid, ...h });
+            });
+        }
+    }
+    globalHogs.sort((a, b) => b.mem - a.mem);
+
+    // Compute active queue sums
+    let totalRunning = 0;
+    let totalWaiting = 0;
+    for (const m in metrics.vllm) {
+        totalWaiting += metrics.vllm[m].waiting_requests || 0;
+        totalRunning += metrics.vllm[m].running_requests || 0;
+    }
+    const queueActiveCount = metrics.queue.active ? metrics.queue.active.length : 0;
+    const queueWaitingCount = metrics.queue.completed ? metrics.queue.completed.filter(t => t.status === "queued" || t.status === "waiting").length : 0;
+
+    return (
+        <div className="max-w-[1440px] mx-auto p-6 md:p-8 flex flex-col gap-6 relative z-10">
+            {/* Header */}
+            <header className="glass-panel px-6 py-4 flex flex-wrap justify-between items-center gap-4 transition-transform duration-300">
+                <div className="flex items-center gap-3">
+                    <span className="w-3 h-3 bg-purple-500 rounded-full shadow-[0_0_10px_#8c00ff] animate-pulse"></span>
+                    <h1 className="text-xl font-bold tracking-wider text-slate-100 bg-clip-text text-transparent bg-gradient-to-r from-slate-100 to-slate-400">
+                        SPARK CLUSTER TELEMETRY
+                    </h1>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_8px_#22c55e]"></span>
+                        <span className="text-xs font-semibold uppercase text-slate-300">SYSTEMS SYNCED</span>
+                    </div>
+                    
+                    <span className="font-mono text-sm text-slate-400 tracking-widest">{clock}</span>
+                    
+                    {/* 3D Isometric View Toggle */}
+                    <button onClick={() => setIs3d(!is3d)} 
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all duration-300 active:scale-95 flex items-center gap-2 ${
+                                is3d 
+                                ? 'bg-purple-600/20 border-purple-500/30 text-purple-400 shadow-[0_0_12px_rgba(140,0,255,0.15)]' 
+                                : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+                            }`}>
+                        <i data-lucide="server" className="w-3.5 h-3.5"><Icons.Server /></i>
+                        {is3d ? "3D ANGLE: ON" : "3D ANGLE: OFF"}
+                    </button>
+                </div>
+            </header>
+
+            {/* Loop Alert Banner */}
+            {loopAlert && (
+                <div className="glass-panel border-amber-500/20 bg-amber-950/20 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-[float_4s_ease-in-out_infinite]">
+                    <div className="flex items-start gap-3">
+                        <Icons.AlertTriangle />
+                        <div>
+                            <strong className="text-amber-400 text-sm tracking-wide">LOOP WARNING SYSTEM DETECTED INFINITE REPETITION</strong>
+                            <p className="text-xs text-slate-300 mt-1">
+                                Uniqueness score dropped to <span className="text-amber-400 font-bold">{loopAlert.score}%</span> on node <strong>{loopAlert.node.replace("spark-", "")}</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={() => sendControlAction('service', loopAlert.node, 'vllm', 'restart')} 
+                            className="bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-extrabold px-5 py-2.5 rounded-lg active:scale-95 transition-all shadow-lg shadow-amber-600/10">
+                        FORCE RESET vLLM INSTANCE
+                    </button>
+                </div>
+            )}
+
+            {/* Kernel / OOM Alarm Banner */}
+            {activeAlarm && (
+                <div className="glass-panel border-red-500/20 bg-red-950/20 p-5 flex justify-between items-start gap-4">
+                    <div className="flex items-start gap-3">
+                        <Icons.AlertTriangle />
+                        <div>
+                            <strong className="text-red-400 text-sm tracking-wide">
+                                {activeAlarm.type === "xid" ? "NVIDIA KERNEL EXCEPTION (XID)" : "OUT OF MEMORY (OOM) KILLER EVENT"}
+                            </strong>
+                            <p className="text-xs text-slate-300 mt-1.5 leading-relaxed font-mono">
+                                Node <strong>{activeAlarm.node.replace("spark-", "")}</strong>: <br/>
+                                <span className="text-red-300/80">{activeAlarm.text}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={() => dismissAlarm(activeAlarm.logText)} 
+                            className="bg-red-600/30 hover:bg-red-600/40 text-red-300 border border-red-500/20 text-xs font-bold px-4 py-2 rounded-lg active:scale-95 transition-all">
+                        DISMISS
+                    </button>
+                </div>
+            )}
+
+            {/* Cluster Node Dials Grid */}
+            <section className="perspective-container relative z-20">
+                <div ref={cardGridRef} className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 isometric-grid ${is3d ? "active-3d" : ""}`}>
+                    {Object.keys(metrics.nodes).map(nodeId => {
+                        const node = metrics.nodes[nodeId];
+                        const cleanId = nodeId.replace("spark-", "");
+                        
+                        if (!node.online) {
+                            return (
+                                <div key={nodeId} className="node-card-3d gsap-card glass-panel opacity-65 flex flex-col justify-center items-center h-[280px] p-6 text-center border-slate-800 bg-slate-950/25">
+                                    <span className="w-12 h-12 rounded-full border border-red-500/20 bg-red-500/5 text-red-500 flex items-center justify-center mb-3">
+                                        <Icons.AlertTriangle />
+                                    </span>
+                                    <h3 className="text-lg font-bold text-slate-400 uppercase tracking-widest">{cleanId}</h3>
+                                    <p className="text-xs text-slate-500 mt-1.5 max-w-[200px]">Node unreachable. Verify Tailscale/SSH keys.</p>
+                                </div>
+                            );
+                        }
+
+                        const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
+                        const swapTotal = node.ram.swap_total || 0;
+                        const swapUsed = node.ram.swap_used || 0;
+                        const swapPerc = swapTotal ? Math.round((swapUsed / swapTotal) * 100) : 0;
+                        
+                        const iowaitVal = node.iowait || 0.0;
+                        const readRate = node.disk.read_rate || 0.0;
+                        const writeRate = node.disk.write_rate || 0.0;
+                        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
+                        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
+                        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
+
+                        // Pressure flags
+                        let isSwapping = swapIn > 0.5 || swapOut > 0.5;
+                        let isThrashing = iowaitVal > 8.0;
+                        let isMemorySaturated = psiSome > 10.0;
+
+                        // GPU prep
+                        let gpuBlock = null;
+                        if (node.gpu && node.gpu.online) {
+                            const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
+                            const powerLimit = node.gpu.power_limit || 300;
+                            
+                            gpuBlock = (
+                                <div className="border-t border-white/5 pt-4 mt-4">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="text-[10px] font-bold text-purple-400 tracking-widest uppercase">GPU Core telemetry</span>
+                                        {node.gpu.throttle_reason && node.gpu.throttle_reason !== "None" && (
+                                            <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded pulsing-badge">
+                                                🚨 {node.gpu.throttle_reason}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2 justify-between">
+                                        {CircularGauge({ value: node.gpu.gpu_util, label: 'LOAD', colorFn: getGoodBadColor })}
+                                        {CircularGauge({ value: node.gpu.temp, maxVal: 100, label: 'TEMP', suffix: "°C", colorFn: getGoodBadColor })}
+                                        {CircularGauge({ value: node.gpu.power_draw, maxVal: powerLimit, label: 'POWER', suffix: "W", colorFn: getStrongWeakColor })}
+                                        {CircularGauge({ value: vramPerc, label: 'VRAM', colorFn: getStrongWeakColor })}
+                                    </div>
+                                </div>
+                            );
+                        } else {
+                            gpuBlock = (
+                                <div className="border-t border-white/5 pt-4 mt-4 flex items-center justify-center py-4 text-center">
+                                    <p className="text-[10px] font-bold tracking-widest text-slate-600 uppercase">GPU ACCELERATOR OFF</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div key={nodeId} className="node-card-3d gsap-card glass-panel p-5 relative flex flex-col justify-between border-white/5 bg-slate-950/20">
+                                {/* Header */}
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-100 tracking-wider flex items-center gap-2">
+                                            {cleanId}
+                                            {isMemorySaturated && <span className="text-[8px] bg-red-500/15 border border-red-500/20 text-red-400 px-1.5 py-0.5 rounded tracking-wide font-mono">PSI ALERT</span>}
+                                            {isSwapping && <span className="text-[8px] bg-amber-500/15 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded tracking-wide pulsing-badge">SWAP PAGING</span>}
+                                            {isThrashing && <span className="text-[8px] bg-red-500/15 border border-red-500/20 text-red-400 px-1.5 py-0.5 rounded tracking-wide">THRASHING</span>}
+                                        </h3>
+                                    </div>
+                                    <span className="text-[9px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">ONLINE</span>
+                                </div>
+
+                                {/* System Radial Dials */}
+                                <div className="flex gap-2 justify-between mb-4">
+                                    {CircularGauge({ value: node.cpu, label: 'CPU', colorFn: getGoodBadColor })}
+                                    {CircularGauge({ value: ramPerc, label: 'RAM', colorFn: getGoodBadColor })}
+                                    {swapTotal > 0 && CircularGauge({ value: swapPerc, label: 'SWAP', colorFn: getGoodBadColor })}
+                                    {CircularGauge({ value: node.disk.perc, label: 'DISK', colorFn: getGoodBadColor })}
+                                </div>
+
+                                {/* Micro Details */}
+                                <div className="border-t border-white/5 pt-3 text-[10px] font-mono text-slate-400 flex flex-col gap-2">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-slate-900/35 p-2 rounded-lg border border-white/5">
+                                        <div>I/O Wait: <span className="text-slate-200 font-bold">{iowaitVal}%</span></div>
+                                        <div>Mem PSI: <span className="text-slate-200 font-bold">{psiSome}%</span></div>
+                                        <div>RAM: <span className="text-slate-200 font-bold">{(node.ram.used/1024).toFixed(0)}/{(node.ram.total/1024).toFixed(0)} GB</span></div>
+                                        {swapTotal > 0 && <div>Swap: <span className="text-slate-200 font-bold">{(swapUsed/1024).toFixed(0)}/{(swapTotal/1024).toFixed(0)} GB</span></div>}
+                                    </div>
+                                    <div className="flex justify-between px-1">
+                                        <span>Read: <span className="text-slate-200 font-bold">{readRate >= 1024 ? `${(readRate/1024).toFixed(1)} MB/s` : `${readRate.toFixed(0)} KB/s`}</span></span>
+                                        <span>Write: <span className="text-slate-200 font-bold">{writeRate >= 1024 ? `${(writeRate/1024).toFixed(1)} MB/s` : `${writeRate.toFixed(0)} KB/s`}</span></span>
+                                    </div>
+                                </div>
+
+                                {/* GPU subsection */}
+                                {gpuBlock}
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
+
+            {/* Dashboard Lower Stack - Queue, Logs, & App Control */}
+            <main ref={cardGridRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+                {/* Col 1: Queue and vLLM cache */}
+                <section className="gsap-card glass-panel p-6 border-white/5 bg-slate-950/20 flex flex-col gap-5">
+                    <h2 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
+                        <Icons.Database />
+                        QUEUE & VRAM CACHE
+                    </h2>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-900/40 border border-white/5 p-3.5 rounded-xl text-center">
+                            <span className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase">ACTIVE TASKS</span>
+                            <span className="block text-2xl font-mono font-bold text-purple-400 mt-1">{totalRunning || queueActiveCount}</span>
+                        </div>
+                        <div className="bg-slate-900/40 border border-white/5 p-3.5 rounded-xl text-center">
+                            <span className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase">QUEUED TASKS</span>
+                            <span className="block text-2xl font-mono font-bold text-amber-500 mt-1">{totalWaiting || queueWaitingCount}</span>
+                        </div>
+                    </div>
+
+                    {/* KV Cache bars */}
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">vLLM KV Cache Allocation</span>
+                        {Object.keys(metrics.vllm).map(modelName => {
+                            const v = metrics.vllm[modelName];
+                            const width = v.online ? `${v.kv_cache_usage}%` : "0%";
+                            return (
+                                <div key={modelName} className="bg-slate-900/35 border border-white/5 p-3 rounded-xl flex flex-col gap-2">
+                                    <div className="flex justify-between items-center text-[10px] font-bold font-mono">
+                                        <span className="text-slate-300">{modelName}</span>
+                                        <span className={v.online ? "text-purple-400" : "text-red-400"}>{v.online ? `${v.kv_cache_usage.toFixed(1)}%` : "OFFLINE"}</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                                        <div className="h-full bg-gradient-to-r from-purple-600 to-amber-500 rounded-full transition-[width] duration-700 ease-out" style={{ width }} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Active Jobs Queue */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Active Pipeline Tasks</span>
+                        <div className="max-h-[140px] overflow-y-auto pr-1 flex flex-col gap-2 custom-scrollbar">
+                            {metrics.queue.active && metrics.queue.active.length > 0 ? (
+                                metrics.queue.active.map(job => (
+                                    <div key={job.task_id || job.id} className="bg-slate-900/30 border border-white/5 px-3 py-2.5 rounded-xl flex justify-between items-center text-[10px]">
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="font-bold text-slate-200">{job.model || "Hermes-70B"}</span>
+                                            <span className="font-mono text-slate-500">ID: {(job.task_id || job.id).substring(0, 8)}...</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-mono font-bold text-purple-400 uppercase">[{job.status}]</span>
+                                            <button onClick={() => cancelQueueTask(job.task_id || job.id)} 
+                                                    className="px-2.5 py-1.5 bg-red-950/20 hover:bg-red-950/45 border border-red-500/20 hover:border-red-500/40 text-red-400 rounded-md font-bold transition-all duration-200">
+                                                CANCEL
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center text-xs text-slate-600 py-6">No jobs currently executing in the queue.</div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Col 2: AI Loop Diagnostics */}
+                <section className="gsap-card glass-panel p-6 border-white/5 bg-slate-950/20 flex flex-col gap-5 justify-between">
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
+                            <Icons.Cpu />
+                            AI REPETITION DIAGNOSTICS
+                        </h2>
+                        
+                        <div className="flex flex-col items-center py-4 bg-slate-900/20 border border-white/5 rounded-2xl relative">
+                            {/* Circular Gauge showing n-gram Uniqueness */}
+                            {Object.keys(metrics.nodes).map(nid => {
+                                const n = metrics.nodes[nid];
+                                if (n.online && n.chat_loop_diagnostics) {
+                                    const score = Math.round(n.chat_loop_diagnostics.repetition_score * 100);
+                                    return (
+                                        <div key={nid} className="flex flex-col items-center gap-3">
+                                            <div className="w-24 h-24 relative">
+                                                <svg viewBox="0 0 36 36" className="circular-chart w-full h-full">
+                                                    <path className="circle-bg fill-none stroke-slate-800/40 stroke-[2.5]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                    <path className="circle-fill fill-none stroke-[2.5] stroke-linecap-round transition-[stroke-dasharray] duration-1000" 
+                                                          strokeDasharray={`${score}, 100`} 
+                                                          stroke={getGoodBadColor(score)} 
+                                                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                                </svg>
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                                                    <span className="block text-lg font-bold font-mono text-slate-200">{score}%</span>
+                                                    <span className="block text-[7px] text-slate-500 font-bold uppercase tracking-wide">Entropy</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                                                4-gram Repetition Metric
+                                            </span>
+                                        </div>
+                                    );
+                                }
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Code Stream Screen */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1">
+                            <Icons.Terminal />
+                            Live Inference Stream
+                        </span>
+                        {Object.keys(metrics.nodes).map(nid => {
+                            const n = metrics.nodes[nid];
+                            if (n.online && n.chat_loop_diagnostics) {
+                                return (
+                                    <div key={nid} className="terminal-screen p-3 rounded-xl border border-white/5 font-mono text-[10px] flex flex-col gap-2">
+                                        <div className="flex flex-col gap-1 max-h-[85px] overflow-y-auto custom-scrollbar">
+                                            <span className="text-purple-400 font-bold">USER:</span>
+                                            <p className="text-slate-300 leading-normal bg-slate-950/40 p-2 rounded border border-white/5 select-all">{n.chat_loop_diagnostics.latest_prompt || "Idle..."}</p>
+                                        </div>
+                                        <div className="flex flex-col gap-1 max-h-[105px] overflow-y-auto custom-scrollbar border-t border-white/5 pt-2">
+                                            <span className="text-amber-500 font-bold">GENERATION:</span>
+                                            <p className="text-slate-300 leading-normal bg-slate-950/40 p-2 rounded border border-white/5 select-all">{n.chat_loop_diagnostics.latest_response || "Waiting..."}</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                        })}
+                    </div>
+                </section>
+
+                {/* Col 3: App Controls & Services */}
+                <section className="gsap-card glass-panel p-6 border-white/5 bg-slate-950/20 flex flex-col gap-4">
+                    <h2 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
+                        <Icons.Terminal />
+                        MICROSERVICE CONTROL CENTER
+                    </h2>
+                    
+                    <div className="flex flex-col gap-4 max-h-[440px] overflow-y-auto pr-1 custom-scrollbar">
+                        {Object.keys(metrics.nodes).map(nodeId => {
+                            const node = metrics.nodes[nodeId];
+                            if (!node.online) return null;
+                            const cleanId = nodeId.replace("spark-", "");
+                            
+                            return (
+                                <div key={nodeId} className="flex flex-col gap-3">
+                                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 pb-1">
+                                        Node {cleanId} Processes
+                                    </div>
+                                    
+                                    {/* Docker container cards inside this host */}
+                                    {node.dockers && node.dockers.length > 0 ? (
+                                        <div className="flex flex-col gap-2">
+                                            {node.dockers.map(d => {
+                                                const ramUsed = d.mem_usage.includes('/') ? d.mem_usage.split('/')[0].trim() : d.mem_usage;
+                                                const totalRam = d.mem_usage.includes('/') ? d.mem_usage.split('/')[1].trim() : '';
+                                                const ramLabel = totalRam ? `${ramUsed} / ${totalRam}` : ramUsed;
+                                                const isRunning = d.state === "running";
+                                                
+                                                return (
+                                                    <div key={d.name} className="bg-slate-900/35 border border-white/5 p-3 rounded-xl flex flex-col gap-2.5">
+                                                        <div className="flex justify-between items-center text-[10px]">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-bold text-slate-200">{d.name}</span>
+                                                                <span className="text-[9px] text-slate-500 font-mono leading-none truncate max-w-[130px]" title={d.image}>{d.image.split(':')[0]}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`w-2 h-2 rounded-full ${isRunning ? "bg-green-500 shadow-[0_0_6px_#22c55e]" : "bg-red-500 shadow-[0_0_6px_#ef4444]"}`}></span>
+                                                                <span className="font-mono text-slate-400 leading-none">{d.status}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {isRunning && (
+                                                            <div className="bg-slate-950/45 p-2 rounded-lg border border-white/5 text-[9px] font-mono text-slate-400 flex justify-between items-center">
+                                                                <span>CPU: <span className="text-slate-200 font-bold">{d.cpu_perc}</span></span>
+                                                                <span>RAM: <span className="text-slate-200 font-bold">{ramLabel}</span></span>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div className="flex gap-2 border-t border-white/5 pt-2 justify-between">
+                                                            <button onClick={() => setLogModal({ node_id: nodeId, type: "docker", name: d.name, logs: "Loading logs..." })} 
+                                                                    className="flex-1 py-1 text-[9px] font-bold bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-slate-600/50 text-slate-300 rounded active:scale-95 transition-transform duration-100 uppercase">
+                                                                Logs
+                                                            </button>
+                                                            <button onClick={() => sendControlAction('container', nodeId, d.name, 'restart')} 
+                                                                    className="flex-1 py-1 text-[9px] font-bold bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-slate-600/50 text-amber-400 rounded active:scale-95 transition-transform duration-100 uppercase">
+                                                                Restart
+                                                            </button>
+                                                            {isRunning ? (
+                                                                <button onClick={() => sendControlAction('container', nodeId, d.name, 'stop')} 
+                                                                        className="flex-1 py-1 text-[9px] font-bold bg-red-950/15 hover:bg-red-950/35 border border-red-500/10 hover:border-red-500/30 text-red-400 rounded active:scale-95 transition-transform duration-100 uppercase">
+                                                                    Kill
+                                                                </button>
+                                                            ) : (
+                                                                <button onClick={() => sendControlAction('container', nodeId, d.name, 'start')} 
+                                                                        className="flex-1 py-1 text-[9px] font-bold bg-green-950/15 hover:bg-green-950/35 border border-green-500/10 hover:border-green-500/30 text-green-400 rounded active:scale-95 transition-transform duration-100 uppercase">
+                                                                    Start
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] text-slate-600 italic">No Docker workloads.</div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            </main>
+
+            {/* Log Stream Modal Panel */}
+            {logModal && (
+                <div className="fixed inset-0 bg-spaceDark/65 backdrop-blur-xl z-50 flex items-center justify-center p-4 md:p-6 transition-all duration-300">
+                    <div className="glass-panel w-full max-w-[800px] border-white/5 bg-slate-950/80 shadow-[0_30px_60px_rgba(0,0,0,0.6)] flex flex-col h-[520px] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center bg-slate-900/30">
+                            <div className="flex items-center gap-3">
+                                <span className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></span>
+                                <h3 className="text-xs font-bold tracking-widest text-slate-200 uppercase font-mono">
+                                    [LOG STREAM] {logModal.node_id.replace("spark-", "")} // {logModal.name}
+                                </h3>
+                            </div>
+                            <button onClick={() => setLogModal(null)} 
+                                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg border border-slate-700/50 hover:border-slate-600 active:scale-95 transition-all">
+                                CLOSE
+                            </button>
+                        </div>
+                        {/* Terminal Screen Body */}
+                        <div className="flex-1 p-4 overflow-y-auto font-mono text-[10px] text-slate-300 leading-relaxed bg-slate-950/90 custom-scrollbar select-all">
+                            {logModal.logs ? (
+                                <pre className="whitespace-pre-wrap">{logModal.logs}</pre>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="w-5 h-5 border-2 border-t-purple-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Render React to Root
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);

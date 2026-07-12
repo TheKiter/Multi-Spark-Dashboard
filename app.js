@@ -636,7 +636,7 @@ function checkKernelAlarms(nodes) {
         alarmBanner.style.display = "flex";
         
         let typeLabel = activeAlarm.type === "xid" ? "NVIDIA Driver Xid Error" : "System RAM Out-Of-Memory (OOM)";
-        alarmDesc.innerHTML = `<span style="color:var(--danger); font-weight:800;">${typeLabel}</span> on node <strong>${activeAlarm.node.replace("spark-", "")}</strong>: <br><code style="font-family:'JetBrains Mono'; font-size:0.85rem; color:#ffd8bf">${activeAlarm.text}</code>`;
+        alarmDesc.innerHTML = `<span style="color:var(--danger); font-weight:800;">${typeLabel}</span> on node <strong>${activeAlarm.node.replace("spark-", "")}</strong>: <br><code style="font-family:'Fira Code'; font-size:0.85rem; color:#ffd8bf">${activeAlarm.text}</code>`;
     } else {
         alarmBanner.style.display = "none";
     }

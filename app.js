@@ -219,13 +219,44 @@ function renderHardwareCards(nodes) {
         const ramTotalGB = (node.ram.total / 1024).toFixed(1);
         const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
         
+        const swapTotal = node.ram.swap_total || 0;
+        const swapUsed = node.ram.swap_used || 0;
+        const swapPerc = swapTotal ? Math.round((swapUsed / swapTotal) * 100) : 0;
+        const swapUsedGB = (swapUsed / 1024).toFixed(1);
+        const swapTotalGB = (swapTotal / 1024).toFixed(1);
+        
+        const iowaitVal = node.iowait || 0.0;
+        const readRate = node.disk.read_rate || 0.0;
+        const writeRate = node.disk.write_rate || 0.0;
+        
+        const swapIn = (node.swap_rates && node.swap_rates.in) || 0.0;
+        const swapOut = (node.swap_rates && node.swap_rates.out) || 0.0;
+        
+        const psiSome = (node.psi_memory && node.psi_memory.some_avg10) || 0.0;
+        const psiFull = (node.psi_memory && node.psi_memory.full_avg10) || 0.0;
+        
+        function formatRate(kbSec) {
+            if (kbSec >= 1024) return `${(kbSec / 1024).toFixed(1)} MB/s`;
+            return `${kbSec.toFixed(0)} KB/s`;
+        }
+        
+        let pressureBadges = "";
+        if (psiSome > 10 || psiFull > 2) {
+            pressureBadges += `<span class="gpu-badge status-danger" style="margin-left: 8px;">⚠️ Mem Pressure (PSI: ${psiSome}%)</span>`;
+        }
+        if (swapIn > 0.5 || swapOut > 0.5) {
+            pressureBadges += `<span class="gpu-badge status-warning" style="margin-left: 8px; animation: pulse 1.5s infinite;">🚨 Swapping (In: ${swapIn}/s, Out: ${swapOut}/s)</span>`;
+        }
+        if (iowaitVal > 8) {
+            pressureBadges += `<span class="gpu-badge status-danger" style="margin-left: 8px;">⚠️ Disk Thrashing (IO Wait: ${iowaitVal}%)</span>`;
+        }
+        
         let gpuHtml = "";
         if (node.gpu.online) {
             const vramUsedGB = (node.gpu.mem_used / 1024).toFixed(1);
             const vramTotalGB = (node.gpu.mem_total / 1024).toFixed(1);
             const vramPerc = node.gpu.mem_total ? Math.round((node.gpu.mem_used / node.gpu.mem_total) * 100) : 0;
             
-            // Check throttle badge
             let throttleBadge = "";
             if (node.gpu.throttle_reason && node.gpu.throttle_reason !== "None") {
                 throttleBadge = `<span class="gpu-badge status-warning" style="margin-left: 8px;">🚨 ${node.gpu.throttle_reason}</span>`;
@@ -282,7 +313,10 @@ function renderHardwareCards(nodes) {
         html += `
             <div class="node-card neumorphic-raised">
                 <div class="node-card-header">
-                    <h3>${nodeId}</h3>
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <h3>${nodeId}</h3>
+                        ${pressureBadges}
+                    </div>
                     <span class="node-badge online">ONLINE</span>
                 </div>
                 <div class="node-body">
@@ -291,7 +325,7 @@ function renderHardwareCards(nodes) {
                         <!-- CPU -->
                         <div class="sys-metric-bar">
                             <div class="bar-row">
-                                <span>CPU Utilization</span>
+                                <span>CPU Utilization ${iowaitVal > 0 ? `<span class="metric-sub-label" style="font-size:0.75rem; color:var(--text-secondary); margin-left:4px;">(I/O Wait: ${iowaitVal}%)</span>` : ""}</span>
                                 <span class="font-tabular">${node.cpu}%</span>
                             </div>
                             <div class="mini-bar-well">
@@ -308,14 +342,32 @@ function renderHardwareCards(nodes) {
                                 <div class="mini-bar-fill" style="width: ${ramPerc}%; background: var(--glow-violet);"></div>
                             </div>
                         </div>
-                        <!-- Disk -->
+                        
+                        <!-- Swap Space -->
+                        ${swapTotal > 0 ? `
                         <div class="sys-metric-bar">
                             <div class="bar-row">
-                                <span>Disk space (/)</span>
+                                <span>Swap Space</span>
+                                <span class="font-tabular">${swapUsedGB}GB / ${swapTotalGB}GB (${swapPerc}%)</span>
+                            </div>
+                            <div class="mini-bar-well">
+                                <div class="mini-bar-fill" style="width: ${swapPerc}%; background: #90caf9;"></div>
+                            </div>
+                        </div>
+                        ` : ""}
+                        
+                        <!-- Disk space & IO activity -->
+                        <div class="sys-metric-bar">
+                            <div class="bar-row">
+                                <span>Disk Space (/)</span>
                                 <span class="font-tabular">${node.disk.used}GB / ${node.disk.total}GB (${node.disk.perc}%)</span>
                             </div>
                             <div class="mini-bar-well">
                                 <div class="mini-bar-fill" style="width: ${node.disk.perc}%; background: #00e676;"></div>
+                            </div>
+                            <div class="bar-row" style="font-size: 0.72rem; margin-top: 4px; color: var(--text-secondary); font-weight: 500;">
+                                <span>Disk Read: <span class="mono-num">${formatRate(readRate)}</span></span>
+                                <span>Disk Write: <span class="mono-num">${formatRate(writeRate)}</span></span>
                             </div>
                         </div>
                     </div>

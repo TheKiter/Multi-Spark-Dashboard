@@ -14,26 +14,32 @@ SUDO_PASS = "007@1Spark007@1"
 
 # Script that runs on the target node (local or remote via SSH) to collect all metrics in a single round-trip
 COLLECTOR_SCRIPT = r"""
-import json, os, subprocess, re
+import json, os, subprocess, re, time
 
 def get_stats():
-    # 1. CPU Utilization
+    # 1. CPU & I/O Wait
     cpu = 0.0
+    iowait = 0.0
     try:
         out = subprocess.check_output("top -bn1 | grep 'Cpu(s)'", shell=True).decode()
         m = re.search(r'(\d+\.\d+)\s+id', out)
         if m: 
             cpu = round(100.0 - float(m.group(1)), 1)
-        else:
-            out = subprocess.check_output("cat /proc/loadavg", shell=True).decode()
-            cpu = round(float(out.split()[0]) * 10, 1)
+        m_wa = re.search(r'(\d+\.\d+)\s+wa', out)
+        if m_wa:
+            iowait = float(m_wa.group(1))
     except:
         try:
-            cpu = round(os.getloadavg()[0] * 10, 1)
-        except: pass
+            out = subprocess.check_output("cat /proc/loadavg", shell=True).decode()
+            cpu = round(float(out.split()[0]) * 10, 1)
+        except:
+            try:
+                cpu = round(os.getloadavg()[0] * 10, 1)
+            except: pass
 
-    # 2. RAM Usage
+    # 2. RAM & Swap Usage
     ram_total = ram_used = ram_free = 0
+    swap_total = swap_used = swap_free = 0
     try:
         with open('/proc/meminfo') as f:
             mem = {}
@@ -44,6 +50,10 @@ def get_stats():
         ram_total = mem.get('MemTotal', 0) // 1024
         ram_free = mem.get('MemAvailable', mem.get('MemFree', 0)) // 1024
         ram_used = ram_total - ram_free
+        
+        swap_total = mem.get('SwapTotal', 0) // 1024
+        swap_free = mem.get('SwapFree', 0) // 1024
+        swap_used = swap_total - swap_free
     except: pass
 
     # 3. Disk Space
@@ -55,6 +65,57 @@ def get_stats():
         disk_free = (stat.f_bavail * stat.f_frsize) // (1024*1024*1024)
         disk_used = disk_total - disk_free
         disk_perc = int((disk_used / disk_total) * 100) if disk_total else 0
+    except: pass
+
+    # 3b. Disk I/O & Swap Rates
+    pswpin_rate = pswpout_rate = pgin_rate = pgout_rate = 0.0
+    try:
+        vm = {}
+        with open('/proc/vmstat') as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    vm[parts[0]] = int(parts[1])
+        
+        curr_time = time.time()
+        curr_stats = {
+            "time": curr_time,
+            "pswpin": vm.get("pswpin", 0),
+            "pswpout": vm.get("pswpout", 0),
+            "pgpgin": vm.get("pgpgin", 0),
+            "pgpgout": vm.get("pgpgout", 0)
+        }
+        
+        state_file = "/tmp/telemetry_last_vmstat.json"
+        if os.path.exists(state_file):
+            try:
+                with open(state_file) as f:
+                    last_stats = json.load(f)
+                dt = curr_time - last_stats["time"]
+                if dt > 0.1:
+                    pswpin_rate = max(0.0, (curr_stats["pswpin"] - last_stats["pswpin"]) / dt)
+                    pswpout_rate = max(0.0, (curr_stats["pswpout"] - last_stats["pswpout"]) / dt)
+                    pgin_rate = max(0.0, (curr_stats["pgpgin"] - last_stats["pgpgin"]) / dt)
+                    pgout_rate = max(0.0, (curr_stats["pgpgout"] - last_stats["pgpgout"]) / dt)
+            except: pass
+        
+        with open(state_file, "w") as f:
+            json.dump(curr_stats, f)
+    except: pass
+
+    # 3c. Memory Pressure Stalls (PSI)
+    psi_some_avg10 = 0.0
+    psi_full_avg10 = 0.0
+    try:
+        if os.path.exists('/proc/pressure/memory'):
+            with open('/proc/pressure/memory') as f:
+                for line in f:
+                    if line.startswith('some '):
+                        m = re.search(r'avg10=(\d+\.\d+)', line)
+                        if m: psi_some_avg10 = float(m.group(1))
+                    elif line.startswith('full '):
+                        m = re.search(r'avg10=(\d+\.\d+)', line)
+                        if m: psi_full_avg10 = float(m.group(1))
     except: pass
 
     # 4. NVIDIA GPU Telemetry
@@ -148,8 +209,31 @@ def get_stats():
 
     return {
         "cpu": cpu,
-        "ram": {"total": ram_total, "used": ram_used, "free": ram_free},
-        "disk": {"total": disk_total, "used": disk_used, "free": disk_free, "perc": disk_perc},
+        "iowait": iowait,
+        "ram": {
+            "total": ram_total,
+            "used": ram_used,
+            "free": ram_free,
+            "swap_total": swap_total,
+            "swap_used": swap_used,
+            "swap_free": swap_free
+        },
+        "disk": {
+            "total": disk_total,
+            "used": disk_used,
+            "free": disk_free,
+            "perc": disk_perc,
+            "read_rate": round(pgin_rate, 1),
+            "write_rate": round(pgout_rate, 1)
+        },
+        "swap_rates": {
+            "in": round(pswpin_rate, 1),
+            "out": round(pswpout_rate, 1)
+        },
+        "psi_memory": {
+            "some_avg10": psi_some_avg10,
+            "full_avg10": psi_full_avg10
+        },
         "gpu": gpu,
         "hogs": hogs,
         "dockers": dockers,

@@ -1254,3 +1254,24 @@ html, body {
     grid-template-columns: 1fr;
 }
 
+/* Custom status badges for memory pressure, swapping, and disk thrashing */
+.status-warning {
+    color: var(--glow-orange) !important;
+    border: 1px solid rgba(255, 145, 0, 0.2) !important;
+    background: rgba(255, 145, 0, 0.05) !important;
+    box-shadow: 0 0 8px rgba(255, 145, 0, 0.1);
+}
+
+.status-danger {
+    color: var(--danger) !important;
+    border: 1px solid rgba(255, 23, 68, 0.2) !important;
+    background: rgba(255, 23, 68, 0.05) !important;
+    box-shadow: 0 0 8px rgba(255, 23, 68, 0.1);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+

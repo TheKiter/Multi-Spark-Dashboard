@@ -525,7 +525,15 @@ class TelemetryAPIHandler(http.server.BaseHTTPRequestHandler):
                             else:
                                 model_name = "qwen-2.5-7b"
                         elif p == 8002:
-                            model_name = "hermes4-14b"
+                            if node_id == "spark-1dd6":
+                                model_name = "qwen3.6-35b"
+                            else:
+                                model_name = "hermes4-14b"
+                        elif p == 8003:
+                            if node_id == "spark-1dd6":
+                                model_name = "hermes4-14b"
+                            else:
+                                model_name = f"vllm-{p}"
                         else:
                             model_name = f"vllm-{p}"
                     

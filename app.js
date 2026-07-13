@@ -472,7 +472,10 @@ const App = () => {
                                                      onClick={() => setSelectedNodeId(nodeId)}
                                                      className={`extruded-raised cursor-pointer flex flex-col justify-center items-center h-[240px] p-6 text-center bg-surface opacity-55 transition-all hover:scale-[1.01] ${isSelected ? 'border border-tertiary shadow-[0_0_12px_rgba(20,184,166,0.25)]' : ''}`}>
                                                     <span className="material-symbols-outlined text-red-400 text-3xl mb-2">error</span>
-                                                    <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">{cleanId}</h3>
+                                                    <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-1.5 justify-center">
+                                                        <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]"></span>
+                                                        {cleanId}
+                                                    </h3>
                                                     <p className="text-[10px] font-mono text-outline-variant mt-1">NODE OFFLINE</p>
                                                 </div>
                                             );
@@ -505,6 +508,7 @@ const App = () => {
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
                                                         <h3 className="text-sm font-bold text-on-surface tracking-wider flex items-center gap-1.5 uppercase font-label-mono">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span>
                                                             {cleanId}
                                                             {isMemorySaturated && <span className="text-[7px] bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-0.5 font-mono font-bold">PSI</span>}
                                                             {isSwapping && <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 font-mono font-bold">SWAP</span>}
@@ -579,75 +583,71 @@ const App = () => {
                                                     const node = metrics.nodes[nodeId];
                                                     const cleanId = nodeId.replace("spark-", "");
                                                     
-                                                    if (!node.online) {
-                                                        const isSelected = selectedNodeId === nodeId;
-                                                        return (
-                                                            <tr key={nodeId} 
-                                                                onClick={() => setSelectedNodeId(nodeId)}
-                                                                className={`cursor-pointer opacity-55 transition-colors ${isSelected ? 'bg-surface-container-high/65 hover:bg-surface-container-high' : 'bg-surface-container-lowest/10 hover:bg-surface-container-low/20'}`}>
-                                                                <td className="p-4 font-bold text-red-400 flex items-center gap-2">
-                                                                    <span className="material-symbols-outlined text-[16px]">error</span>
-                                                                    {cleanId}
-                                                                </td>
-                                                                <td className="p-4 text-outline-variant italic" colSpan="4">OFFLINE</td>
-                                                              </tr>
-                                                        );
-                                                    }
-                                                    
-                                                    const ramPerc = node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
-                                                    const isGpuOnline = node.gpu && node.gpu.online;
-                                                    const vllmOnline = Object.values(metrics.vllm).some(v => v.node_id === nodeId && v.online);
-                                                    
-                                                    const isSelected = selectedNodeId === nodeId;
-                                                    return (
-                                                        <tr key={nodeId} 
-                                                            onClick={() => setSelectedNodeId(nodeId)}
-                                                            className={`cursor-pointer transition-colors group ${isSelected ? 'bg-surface-container-high/65 hover:bg-surface-container-high' : 'hover:bg-surface-container-low'}`}>
-                                                            <td className="p-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="w-8 h-8 rounded-lg bg-surface-container-high recessed-inset flex items-center justify-center">
-                                                                        <span className="material-symbols-outlined text-tertiary text-sm">dns</span>
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="text-on-surface font-semibold uppercase">{cleanId}</div>
-                                                                        <div className="text-[9px] text-on-surface-variant font-mono opacity-60">ID: {nodeId}</div>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="p-4">
-                                                                <div className="flex gap-4">
-                                                                    {HorizontalSteppedGauge({ value: node.cpu, label: "CPU", colorFn: getGoodBadColor, isLightTheme })}
-                                                                    {HorizontalSteppedGauge({ value: ramPerc, label: "RAM", colorFn: getGoodBadColor, isLightTheme })}
-                                                                </div>
-                                                            </td>
-                                                            <td className="p-4">
-                                                                {isGpuOnline ? (
-                                                                    <div className="flex items-center gap-4">
-                                                                        <span className="px-2 py-1 bg-surface-container-high rounded text-[9px] border border-tertiary/10 font-bold uppercase">
-                                                                            {(node.gpu.gpu_name || "GPU").replace("NVIDIA", "").replace("Accelerator", "").trim()}
-                                                                        </span>
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}\u00b0C / {node.gpu.gpu_util}% Load</span>
-                                                                            {HorizontalSteppedGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-[9px] text-on-surface-variant opacity-50 uppercase">No GPU</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="p-4">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className={`material-symbols-outlined text-sm ${vllmOnline ? 'text-tertiary animate-pulse' : 'text-outline-variant'}`}>
-                                                                        {vllmOnline ? "check_circle" : "cancel"}
-                                                                    </span>
-                                                                    <span className="text-on-surface font-bold uppercase">{vllmOnline ? "ACTIVE" : "INACTIVE"}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="p-4 relative">
-                                                                <div className="w-full max-w-[120px] spark-line opacity-40 group-hover:opacity-100 transition-opacity"></div>
-                                                            </td>
-                                                        </tr>
-                                                    );
+                                                     const isOnline = node.online;
+                                                     const ramPerc = isOnline && node.ram.total ? Math.round((node.ram.used / node.ram.total) * 100) : 0;
+                                                     const isGpuOnline = isOnline && node.gpu && node.gpu.online;
+                                                     const vllmOnline = isOnline && Object.values(metrics.vllm).some(v => v.node_id === nodeId && v.online);
+                                                     const isSelected = selectedNodeId === nodeId;
+                                                     
+                                                     return (
+                                                         <tr key={nodeId} 
+                                                             onClick={() => setSelectedNodeId(nodeId)}
+                                                             className={`cursor-pointer transition-colors group ${!isOnline ? 'opacity-65' : ''} ${isSelected ? 'bg-surface-container-high/65 hover:bg-surface-container-high' : isOnline ? 'hover:bg-surface-container-low' : 'bg-surface-container-lowest/5 hover:bg-surface-container-low/20'}`}>
+                                                             <td className="p-4">
+                                                                 <div className="flex items-center gap-3">
+                                                                     {/* Status dot */}
+                                                                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.65)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.65)]'}`}></span>
+                                                                     <div className="w-8 h-8 rounded-lg bg-surface-container-high recessed-inset flex items-center justify-center flex-shrink-0">
+                                                                         <span className={`material-symbols-outlined text-sm ${isOnline ? 'text-tertiary' : 'text-outline-variant'}`}>dns</span>
+                                                                     </div>
+                                                                     <div>
+                                                                         <div className={`font-semibold uppercase ${isOnline ? 'text-on-surface' : 'text-outline-variant'}`}>{cleanId}</div>
+                                                                         <div className="text-[9px] text-on-surface-variant font-mono opacity-60">ID: {nodeId}</div>
+                                                                     </div>
+                                                                 </div>
+                                                             </td>
+                                                             {isOnline ? (
+                                                                 <React.Fragment>
+                                                                     <td className="p-4">
+                                                                         <div className="flex gap-4">
+                                                                             {HorizontalSteppedGauge({ value: node.cpu, label: "CPU", colorFn: getGoodBadColor, isLightTheme })}
+                                                                             {HorizontalSteppedGauge({ value: ramPerc, label: "RAM", colorFn: getGoodBadColor, isLightTheme })}
+                                                                         </div>
+                                                                     </td>
+                                                                     <td className="p-4">
+                                                                         {isGpuOnline ? (
+                                                                             <div className="flex items-center gap-4">
+                                                                                 <span className="px-2 py-1 bg-surface-container-high rounded text-[9px] border border-tertiary/10 font-bold uppercase">
+                                                                                     {(node.gpu.gpu_name || "GPU").replace("NVIDIA", "").replace("Accelerator", "").trim()}
+                                                                                 </span>
+                                                                                 <div className="flex flex-col gap-1">
+                                                                                     <span className="text-[10px] text-secondary font-bold font-mono">{node.gpu.temp}\u00b0C / {node.gpu.gpu_util}% Load</span>
+                                                                                     {HorizontalSteppedGauge({ value: node.gpu.gpu_util, label: "GPU Load", colorFn: getGoodBadColor, isLightTheme })}
+                                                                                 </div>
+                                                                             </div>
+                                                                         ) : (
+                                                                             <span className="text-[9px] text-on-surface-variant opacity-50 uppercase">No GPU</span>
+                                                                         )}
+                                                                     </td>
+                                                                     <td className="p-4">
+                                                                         <div className="flex items-center gap-2">
+                                                                             <span className={`material-symbols-outlined text-sm ${vllmOnline ? 'text-tertiary animate-pulse' : 'text-outline-variant'}`}>
+                                                                                 {vllmOnline ? "check_circle" : "cancel"}
+                                                                             </span>
+                                                                             <span className="text-on-surface font-bold uppercase">{vllmOnline ? "ACTIVE" : "INACTIVE"}</span>
+                                                                         </div>
+                                                                     </td>
+                                                                     <td className="p-4 relative">
+                                                                         <div className="w-full max-w-[120px] spark-line opacity-40 group-hover:opacity-100 transition-opacity"></div>
+                                                                     </td>
+                                                                 </React.Fragment>
+                                                             ) : (
+                                                                 <td className="p-4 text-outline-variant italic uppercase tracking-wider font-bold text-[10px]" colSpan="4">
+                                                                     Offline / Diagnostics Unavailable
+                                                                 </td>
+                                                             )}
+                                                         </tr>
+                                                     );
                                                 })}
                                             </tbody>
                                         </table>

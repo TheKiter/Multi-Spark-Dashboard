@@ -181,22 +181,7 @@ const App = () => {
         }
     };
     
-    const cancelQueueTask = async (taskId) => {
-        if (!confirm(`Cancel task ${taskId}?`)) return;
-        try {
-            const res = await fetch(CONTROL_TASK_CANCEL_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ task_id: taskId })
-            });
-            const data = await res.json();
-            alert(data.status || data.error || "Task cancelled.");
-            fetchTelemetry();
-        } catch (e) {
-            alert("Failed to cancel task: " + e.message);
-        }
-    };
-    
+
     const dismissAlarm = (logText) => {
         setDismissedAlarms(prev => {
             const updated = new Set(prev);
@@ -268,8 +253,6 @@ const App = () => {
         ? Math.round(activeModels.reduce((acc, m) => acc + metrics.vllm[m].kv_cache_usage, 0) / activeModels.length)
         : 0;
         
-    const queueWaitingCount = metrics.queue.waiting ? metrics.queue.waiting.length : 0;
-    
     return (
         <div className="min-h-screen flex text-on-surface">
             {/* Sidebar Navigation */}
@@ -302,16 +285,7 @@ const App = () => {
                         <span>vLLM Instances</span>
                     </button>
                     
-                    <button onClick={() => setActiveTab("queue")}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
-                                activeTab === "queue"
-                                ? 'bg-surface-container-high text-tertiary shadow-[inset_4px_4px_8px_var(--shadow-dark),inset_-4px_-4px_8px_var(--shadow-light)]'
-                                : 'text-on-surface-variant hover:bg-surface-container-low hover:scale-[1.02]'
-                            }`}>
-                        <span className="material-symbols-outlined text-[18px]">hourglass_empty</span>
-                        <span>Queue Status</span>
-                    </button>
-                    
+
                     <button onClick={() => setActiveTab("containers")}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-label-mono text-label-mono transition-all text-left ${
                                 activeTab === "containers"
@@ -855,55 +829,7 @@ const App = () => {
                         </div>
                     )}
                     
-                    {activeTab === "queue" && (
-                        <div className="space-y-6">
-                            <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px]">hourglass_empty</span>
-                                Priority Scheduler Queue
-                            </h2>
-                            
-                            <div className="extruded-raised bg-surface rounded-xl overflow-hidden border border-white/5">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="bg-surface-container-low/50 font-label-mono text-label-mono text-on-surface-variant text-left">
-                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Model Instance</th>
-                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Job Task ID</th>
-                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px]">Active Status</th>
-                                                <th className="p-4 border-b border-outline-variant/25 font-bold uppercase tracking-widest text-[10px] text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="font-label-mono text-label-mono divide-y divide-outline-variant/10">
-                                            {metrics.queue.active && metrics.queue.active.length > 0 ? (
-                                                metrics.queue.active.map(job => (
-                                                    <tr key={job.task_id || job.id} className="hover:bg-surface-container-low transition-colors">
-                                                        <td className="p-4 font-bold text-on-surface">{job.model || "Hermes-3-70B"}</td>
-                                                        <td className="p-4 font-mono text-outline">{job.task_id || job.id}</td>
-                                                        <td className="p-4">
-                                                            <span className="px-2 py-0.5 bg-tertiary/10 border border-tertiary/20 text-tertiary rounded text-[9px] font-bold uppercase">{job.status}</span>
-                                                        </td>
-                                                        <td className="p-4 text-right">
-                                                            <button onClick={() => cancelQueueTask(job.task_id || job.id)}
-                                                                    className="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-red-500/20 text-red-400 text-[9px] font-bold rounded uppercase active:scale-95 transition-all shadow-[1px_1px_3px_var(--shadow-dark)]">
-                                                                Cancel
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td className="p-8 text-center text-on-surface-variant font-mono italic" colSpan="4">
-                                                        No active pipeline tasks in queue.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
+
                     {activeTab === "containers" && (
                         <div className="space-y-6">
                             <h2 className="text-xs font-bold font-mono tracking-widest text-on-surface-variant uppercase flex items-center gap-2">
